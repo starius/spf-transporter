@@ -1,0 +1,17 @@
+image: golang:1.20
+
+stages:
+  - lint
+  - test
+
+lint:
+  stage: lint
+  script:
+    - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
+    - make lint
+
+tests:
+  stage: test
+  script:
+    # Unit tests.
+    - make unit_test

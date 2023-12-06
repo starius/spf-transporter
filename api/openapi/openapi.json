@@ -1,0 +1,304 @@
+{
+ "components": {
+  "requestBodies": {
+   "api.CheckUtxoApprovalRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/api.CheckUtxoApprovalRequest"
+      }
+     }
+    }
+   },
+   "api.HistoryRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/api.HistoryRequest"
+      }
+     }
+    }
+   },
+   "api.SubmitScpTxRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/api.SubmitScpTxRequest"
+      }
+     }
+    }
+   },
+   "api.SubmitSolanaTxRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/api.SubmitSolanaTxRequest"
+      }
+     }
+    }
+   }
+  },
+  "schemas": {
+   "api.CheckUtxoApprovalRequest": {
+    "properties": {
+     "utxos": {
+      "items": {
+       "$ref": "#/components/schemas/api.SpfUtxo"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "api.CheckUtxoApprovalResponse": {
+    "properties": {
+     "transport_allowed": {
+      "type": "boolean"
+     },
+     "wait_time": {
+      "type": "number"
+     }
+    },
+    "type": "object"
+   },
+   "api.HistoryRequest": {
+    "properties": {
+     "page_id": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "api.HistoryResponse": {
+    "properties": {
+     "more": {
+      "type": "boolean"
+     },
+     "next_page_id": {
+      "type": "string"
+     },
+     "records": {
+      "items": {
+       "$ref": "#/components/schemas/api.TransportRecord"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "api.SolanaAddress": {
+    "type": "string"
+   },
+   "api.SolanaTxID": {
+    "type": "string"
+   },
+   "api.SpfUtxo": {
+    "properties": {
+     "unlockhash": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "value": {
+      "$ref": "#/components/schemas/types.Currency"
+     }
+    },
+    "type": "object"
+   },
+   "api.SpfxInvoice": {
+    "properties": {
+     "address": {
+      "$ref": "#/components/schemas/api.SolanaAddress"
+     },
+     "amount": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "total_supply": {
+      "$ref": "#/components/schemas/types.Currency"
+     }
+    },
+    "type": "object"
+   },
+   "api.SubmitScpTxRequest": {
+    "properties": {
+     "burn_id": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "spfx_total_supply": {
+      "$ref": "#/components/schemas/types.Currency"
+     }
+    },
+    "type": "object"
+   },
+   "api.SubmitScpTxResponse": {
+    "properties": {
+     "invoice_sig": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "spfx_invoice": {
+      "$ref": "#/components/schemas/api.SpfxInvoice"
+     },
+     "wait_time": {
+      "type": "number"
+     }
+    },
+    "type": "object"
+   },
+   "api.SubmitSolanaTxRequest": {
+    "properties": {
+     "id": {
+      "$ref": "#/components/schemas/api.SolanaTxID"
+     }
+    },
+    "type": "object"
+   },
+   "api.SubmitSolanaTxResponse": {
+    "type": "object"
+   },
+   "api.TransportRecord": {
+    "properties": {
+     "burn_time": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "invoice_time": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "queue_end_time": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "queue_up_time": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "solana_tx_time": {
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "types.Currency": {
+    "type": "object"
+   },
+   "types.TransactionID": {},
+   "types.UnlockHash": {}
+  }
+ },
+ "info": {
+  "title": "",
+  "version": "3.0.0"
+ },
+ "openapi": "3.0.0",
+ "paths": {
+  "/v1/transporter/checkutxoapproval": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/api.CheckUtxoApprovalRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/api.CheckUtxoApprovalResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "api"
+    ]
+   }
+  },
+  "/v1/transporter/history": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/api.HistoryRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/api.HistoryResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "api"
+    ]
+   }
+  },
+  "/v1/transporter/submitscptx": {
+   "post": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/api.SubmitScpTxRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/api.SubmitScpTxResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "api"
+    ]
+   }
+  },
+  "/v1/transporter/submitsolanatx": {
+   "post": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/api.SubmitSolanaTxRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/api.SubmitSolanaTxResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "api"
+    ]
+   }
+  }
+ }
+}
