@@ -1,4 +1,4 @@
-package api
+package transporter
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ func GetRoutes(s Service) []api2.Route {
 	return []api2.Route{
 		route(s, "CheckUtxoApproval", http.MethodGet),
 		route(s, "SubmitScpTx", http.MethodPost),
-		route(s, "SubmitSolanaTx", http.MethodPost),
+		route(s, "TransportStatus", http.MethodGet),
 		route(s, "History", http.MethodGet),
 	}
 }
