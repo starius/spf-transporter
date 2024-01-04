@@ -12,6 +12,15 @@ lint:
 
 tests:
   stage: test
+  variables:
+      POSTGRES_DB: "transporterdb"
+      POSTGRES_USER: "user"
+      POSTGRES_PASSWORD: "dk358ncfDir8"
+  services:
+    - name:  postgres:12.2-alpine
+      alias: database
   script:
     # Unit tests.
-    - make unit_test
+    - make unit_tests
+    # Integration tests.
+    - make integration_tests
