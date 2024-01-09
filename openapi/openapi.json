@@ -1,0 +1,343 @@
+{
+ "components": {
+  "requestBodies": {
+   "transporter.CheckUtxoApprovalRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/transporter.CheckUtxoApprovalRequest"
+      }
+     }
+    }
+   },
+   "transporter.HistoryRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/transporter.HistoryRequest"
+      }
+     }
+    }
+   },
+   "transporter.SubmitScpTxRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/transporter.SubmitScpTxRequest"
+      }
+     }
+    }
+   },
+   "transporter.TransportStatusRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/transporter.TransportStatusRequest"
+      }
+     }
+    }
+   }
+  },
+  "schemas": {
+   "spf-transporter.CheckUtxoApprovalRequest": {
+    "properties": {
+     "utxos": {
+      "items": {
+       "$ref": "#/components/schemas/spf-transporter.SpfUtxo"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.CheckUtxoApprovalResponse": {
+    "properties": {
+     "max_amount": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "transport_allowed": {
+      "type": "boolean"
+     },
+     "wait_time_estimate": {
+      "type": "number"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.HistoryRequest": {
+    "properties": {
+     "page_id": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.HistoryResponse": {
+    "properties": {
+     "more": {
+      "type": "boolean"
+     },
+     "next_page_id": {
+      "type": "string"
+     },
+     "records": {
+      "items": {
+       "$ref": "#/components/schemas/spf-transporter.TransportRecord"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.SolanaAddress": {
+    "type": "string"
+   },
+   "spf-transporter.SolanaTxID": {
+    "type": "string"
+   },
+   "spf-transporter.SolanaTxInfo": {
+    "properties": {
+     "invoice_time": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "solana_tx_id": {
+      "$ref": "#/components/schemas/spf-transporter.SolanaTxID"
+     },
+     "solana_tx_time": {
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.SpfUtxo": {
+    "properties": {
+     "unlockhash": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "value": {
+      "$ref": "#/components/schemas/types.Currency"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.SpfxInvoice": {
+    "properties": {
+     "address": {
+      "$ref": "#/components/schemas/spf-transporter.SolanaAddress"
+     },
+     "amount": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "total_supply": {
+      "$ref": "#/components/schemas/types.Currency"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.SubmitScpTxRequest": {
+    "properties": {
+     "burn_id": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.SubmitScpTxResponse": {
+    "properties": {
+     "queue_position": {
+      "type": "number"
+     },
+     "spf_amount_ahead": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "wait_time_estimate": {
+      "type": "number"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.TransportRecord": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/spf-transporter.TransportRequest"
+     },
+     {
+      "$ref": "#/components/schemas/spf-transporter.SolanaTxInfo"
+     }
+    ],
+    "properties": {
+     "completed": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.TransportRequest": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/spf-transporter.SpfxInvoice"
+     }
+    ],
+    "properties": {
+     "burn_id": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "burn_time": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "queue_up_time": {
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.TransportStatus": {
+    "type": "number"
+   },
+   "spf-transporter.TransportStatusRequest": {
+    "properties": {
+     "burn_id": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.TransportStatusResponse": {
+    "properties": {
+     "status": {
+      "$ref": "#/components/schemas/spf-transporter.TransportStatus"
+     }
+    },
+    "type": "object"
+   },
+   "types.Currency": {
+    "type": "object"
+   },
+   "types.TransactionID": {},
+   "types.UnlockHash": {}
+  }
+ },
+ "info": {
+  "title": "",
+  "version": "3.0.0"
+ },
+ "openapi": "3.0.0",
+ "paths": {
+  "/v1/transporter/checkutxoapproval": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/transporter.CheckUtxoApprovalRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/transporter.CheckUtxoApprovalResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "spf-transporter"
+    ]
+   }
+  },
+  "/v1/transporter/history": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/transporter.HistoryRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/transporter.HistoryResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "spf-transporter"
+    ]
+   }
+  },
+  "/v1/transporter/submitscptx": {
+   "post": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/transporter.SubmitScpTxRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/transporter.SubmitScpTxResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "spf-transporter"
+    ]
+   }
+  },
+  "/v1/transporter/transportstatus": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/transporter.TransportStatusRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/transporter.TransportStatusResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "spf-transporter"
+    ]
+   }
+  }
+ }
+}

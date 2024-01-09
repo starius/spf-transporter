@@ -1,0 +1,6 @@
+host     = "database"
+port     = 5432
+user     = "user"
+password = "dk358ncfDir8"
+dbname   = "transporterdb"
+sslmode  = "disable"
