@@ -26,7 +26,7 @@ type Solana interface {
 
 type EmissionRules interface {
 	AllowedSupply() types.Currency
-	TimeTillSupply(supply types.Currency) time.Duration
+	TimeTillSupply(supply types.Currency) (time.Duration, bool)
 }
 
 type ScpBlockchain interface {
