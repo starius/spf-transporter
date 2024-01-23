@@ -1,6 +1,7 @@
 package scprime
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"path/filepath"
@@ -55,25 +56,25 @@ func (s *ScPrime) IsTxConfirmed(id types.TransactionID) (bool, error) {
 	return s.tp.TransactionConfirmed(id)
 }
 
-func (s *ScPrime) ValidTransaction(tx *types.Transaction) bool {
+func (s *ScPrime) ValidTransaction(tx *types.Transaction) error {
 	for _, sig := range tx.TransactionSignatures {
 		if !sig.CoveredFields.WholeTransaction {
-			return false
+			return errors.New("CoveredFields must have WholeTransaction flag set")
 		}
 	}
 	currnetHeight := s.cs.Height()
 	if err := tx.StandaloneValid(currnetHeight); err != nil {
-		return false
+		return err
 	}
-	return true
+	return nil
 }
 
 func (s *ScPrime) ExtractSolanaAddress(tx *types.Transaction) (common.SolanaAddress, error) {
 	if len(tx.ArbitraryData) != 1 {
-		return nil, fmt.Errorf("length of ArbitraryData must be 1, got %d", len(tx.ArbitraryData))
+		return common.SolanaAddress{}, fmt.Errorf("length of ArbitraryData must be 1, got %d", len(tx.ArbitraryData))
 	}
-	if len(tx.ArbitraryData[0]) != common.SolanaAddressLen {
-		return nil, fmt.Errorf("incorrect solana address len %d, must be 32", len(tx.ArbitraryData[0]))
+	if len(tx.ArbitraryData[0]) != common.SolanaAddrLen {
+		return common.SolanaAddress{}, fmt.Errorf("incorrect solana address len %d, must be 32", len(tx.ArbitraryData[0]))
 	}
 	return common.SolanaAddress(tx.ArbitraryData[0]), nil
 }

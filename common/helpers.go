@@ -30,7 +30,7 @@ func ExtractSiafundUnlockHashes(tx *types.Transaction) (res []types.UnlockHash) 
 	for _, sfi := range tx.SiafundInputs {
 		uh := sfi.UnlockConditions.UnlockHash()
 		if _, ok := uniqueUn[uh]; !ok {
-			uniqueUn[sfi.UnlockConditions.UnlockHash()] = true
+			uniqueUn[uh] = true
 			res = append(res, uh)
 		}
 	}
@@ -57,4 +57,8 @@ func SumUtxos(utxos []SpfUtxo) (sum types.Currency) {
 
 func IsPreminedPeriod(now time.Time) bool {
 	return now.Before(EmissionStart)
+}
+
+func DivCurrencyRoundUp(c, divBy types.Currency) types.Currency {
+	return c.Add(divBy.Sub64(1)).Div(divBy)
 }

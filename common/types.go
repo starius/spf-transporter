@@ -2,12 +2,21 @@ package common
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
+	"github.com/mr-tron/base58"
 	"gitlab.com/scpcorp/ScPrime/types"
 )
 
 var ErrNotExists = errors.New("not exists")
+
+type QueueHandlingMode int
+
+const (
+	OneByOne         QueueHandlingMode = iota // Queue is released continuously as old records leave.
+	ReleaseAllAtOnce                          // Queue is locked after it reaches QueueLockLimit from settings.
+)
 
 type TransportType int
 
@@ -35,6 +44,19 @@ type SupplyInfo struct {
 	Regular  types.Currency `json:"regular_supply"`
 }
 
+func (si SupplyInfo) Equals(si2 SupplyInfo) bool {
+	if si.Airdrop.Cmp(si2.Airdrop) != 0 {
+		return false
+	}
+	if si.Premined.Cmp(si2.Premined) != 0 {
+		return false
+	}
+	if si.Regular.Cmp(si2.Regular) != 0 {
+		return false
+	}
+	return true
+}
+
 type SpfUtxo struct {
 	Value      types.Currency   `json:"value"`
 	UnlockHash types.UnlockHash `json:"unlockhash"`
@@ -45,7 +67,25 @@ type PreminedRecord struct {
 	Transported types.Currency `json:"transported"`
 }
 
-type SolanaAddress string
+const SolanaAddrLen = 32
+
+type SolanaAddress [SolanaAddrLen]byte
+
+func SolanaAddressFromString(addrStr string) (addr SolanaAddress, err error) {
+	val, err := base58.Decode(addrStr)
+	if err != nil {
+		return addr, fmt.Errorf("decode: %w", err)
+	}
+	if len(val) != SolanaAddrLen {
+		return addr, fmt.Errorf("invalid length, expected %v, got %d", SolanaAddrLen, len(val))
+	}
+	copy(addr[:], val)
+	return
+}
+
+func (addr SolanaAddress) String() string {
+	return base58.Encode(addr[:])
+}
 
 type SpfxInvoice struct {
 	Address     SolanaAddress  `json:"address"`
@@ -68,8 +108,9 @@ type TransportRequest struct {
 type SolanaTxID string
 
 type SolanaTxStatus struct {
-	Confirmed      bool `json:"confirmed"`
-	MintSuccessful bool `json:"mint_successful"`
+	ConfirmationTime time.Time `json:"confirmation_time"`
+	Confirmed        bool      `json:"confirmed"`
+	MintSuccessful   bool      `json:"mint_successful"`
 }
 
 type SolanaTxInfo struct {
@@ -93,13 +134,13 @@ type UnconfirmedTxInfo struct {
 	Type         TransportType       `json:"type"`
 }
 
-type UtxoValidationResult struct {
-	TransportAllowed bool            `json:"transport_allowed"`
-	MaxAmount        *types.Currency `json:"max_amount,omitempty"`
-	SupplyAfter      *types.Currency `json:"supply_after,omitempty"`
+type QueueAllowance struct {
+	FreeCapacity types.Currency `json:"free_capacity"`
+	QueueSize    types.Currency `json:"queue_size"`
 }
 
-type ScpSubmitInfo struct {
-	SupplyNeeded  types.Currency `json:"supply_needed"`
-	CurrentSupply types.Currency `json:"current_supply"`
+type Allowance struct {
+	AirdropFreeCapacity  types.Currency                      `json:"airdrop_free_capacity"`
+	PreminedFreeCapacity map[types.UnlockHash]types.Currency `json:"premined_free_capacity"`
+	Queue                QueueAllowance                      `json:"queue"`
 }

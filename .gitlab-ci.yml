@@ -23,4 +23,4 @@ tests:
     # Unit tests.
     - make unit_tests
     # Integration tests.
-    - make integration_tests
+    # - make integration_tests

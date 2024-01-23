@@ -8,14 +8,305 @@ package transporterdb
 import (
 	"context"
 	"database/sql"
+
+	"github.com/lib/pq"
 )
 
-const createRecord = `-- name: CreateRecord :exec
-INSERT INTO transport_records (
+const airdropSupply = `-- name: AirdropSupply :one
+SELECT MAX(supply_after) FROM airdrop_transports
+`
+
+func (q *Queries) AirdropSupply(ctx context.Context) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, airdropSupply)
+	var max interface{}
+	err := row.Scan(&max)
+	return max, err
+}
+
+const burnIDExists = `-- name: BurnIDExists :one
+SELECT
+    exists (SELECT 1 FROM unconfirmed_burns WHERE unconfirmed_burns.burn_id = $1) AS unconfirmed,
+    exists (SELECT 1 FROM premined_transports WHERE premined_transports.burn_id = $1) AS premined,
+    exists (SELECT 1 FROM airdrop_transports WHERE airdrop_transports.burn_id = $1) AS airdrop,
+    exists (SELECT 1 FROM queue_transports WHERE queue_transports.burn_id = $1) AS queue
+`
+
+type BurnIDExistsRow struct {
+	Unconfirmed bool
+	Premined    bool
+	Airdrop     bool
+	Queue       bool
+}
+
+func (q *Queries) BurnIDExists(ctx context.Context, burnID string) (BurnIDExistsRow, error) {
+	row := q.db.QueryRowContext(ctx, burnIDExists, burnID)
+	var i BurnIDExistsRow
+	err := row.Scan(
+		&i.Unconfirmed,
+		&i.Premined,
+		&i.Airdrop,
+		&i.Queue,
+	)
+	return i, err
+}
+
+const completedQueueSupply = `-- name: CompletedQueueSupply :one
+SELECT MAX(supply_after) FROM queue_transports
+INNER JOIN solana_transactions ON solana_transactions.id = queue_transports.solana_id
+WHERE solana_transactions.confirmed = TRUE
+`
+
+func (q *Queries) CompletedQueueSupply(ctx context.Context) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, completedQueueSupply)
+	var max interface{}
+	err := row.Scan(&max)
+	return max, err
+}
+
+const confirmSolanaTransaction = `-- name: ConfirmSolanaTransaction :exec
+UPDATE solana_transactions
+SET confirmation_time = $2, confirmed = TRUE
+WHERE id = $1
+`
+
+type ConfirmSolanaTransactionParams struct {
+	ID               string
+	ConfirmationTime sql.NullTime
+}
+
+func (q *Queries) ConfirmSolanaTransaction(ctx context.Context, arg ConfirmSolanaTransactionParams) error {
+	_, err := q.db.ExecContext(ctx, confirmSolanaTransaction, arg.ID, arg.ConfirmationTime)
+	return err
+}
+
+const confirmedAirdropSupply = `-- name: ConfirmedAirdropSupply :one
+SELECT MAX(supply_after) FROM airdrop_transports
+WHERE solana_id IS NOT NULL
+`
+
+func (q *Queries) ConfirmedAirdropSupply(ctx context.Context) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, confirmedAirdropSupply)
+	var max interface{}
+	err := row.Scan(&max)
+	return max, err
+}
+
+const confirmedPreminedSupply = `-- name: ConfirmedPreminedSupply :one
+SELECT MAX(supply_after) FROM premined_transports
+WHERE solana_id IS NOT NULL
+`
+
+func (q *Queries) ConfirmedPreminedSupply(ctx context.Context) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, confirmedPreminedSupply)
+	var max interface{}
+	err := row.Scan(&max)
+	return max, err
+}
+
+const decreasePremined = `-- name: DecreasePremined :exec
+UPDATE premined_limits
+SET transported = transported - $2
+WHERE address = $1
+`
+
+type DecreasePreminedParams struct {
+	Address     string
+	Transported sql.NullInt64
+}
+
+func (q *Queries) DecreasePremined(ctx context.Context, arg DecreasePreminedParams) error {
+	_, err := q.db.ExecContext(ctx, decreasePremined, arg.Address, arg.Transported)
+	return err
+}
+
+const increasePreminedTransported = `-- name: IncreasePreminedTransported :exec
+UPDATE premined_limits
+SET transported = transported + $2
+WHERE address = $1
+`
+
+type IncreasePreminedTransportedParams struct {
+	Address     string
+	Transported sql.NullInt64
+}
+
+func (q *Queries) IncreasePreminedTransported(ctx context.Context, arg IncreasePreminedTransportedParams) error {
+	_, err := q.db.ExecContext(ctx, increasePreminedTransported, arg.Address, arg.Transported)
+	return err
+}
+
+const insertFlag = `-- name: InsertFlag :exec
+INSERT INTO global_flags (
+    name, value
+) VALUES (
+    $1, $2
+)
+`
+
+type InsertFlagParams struct {
+	Name  string
+	Value sql.NullBool
+}
+
+func (q *Queries) InsertFlag(ctx context.Context, arg InsertFlagParams) error {
+	_, err := q.db.ExecContext(ctx, insertFlag, arg.Name, arg.Value)
+	return err
+}
+
+const insertPremined = `-- name: InsertPremined :exec
+INSERT INTO premined_limits (
+    address, allowed_max, transported
+) VALUES (
+    $1, $2, $3
+)
+`
+
+type InsertPreminedParams struct {
+	Address     string
+	AllowedMax  int64
+	Transported sql.NullInt64
+}
+
+func (q *Queries) InsertPremined(ctx context.Context, arg InsertPreminedParams) error {
+	_, err := q.db.ExecContext(ctx, insertPremined, arg.Address, arg.AllowedMax, arg.Transported)
+	return err
+}
+
+const insertSolanaTransaction = `-- name: InsertSolanaTransaction :exec
+INSERT INTO solana_transactions (
+    id,
+    broadcast_time
+) VALUES (
+    $1, $2
+)
+`
+
+type InsertSolanaTransactionParams struct {
+	ID            string
+	BroadcastTime sql.NullTime
+}
+
+func (q *Queries) InsertSolanaTransaction(ctx context.Context, arg InsertSolanaTransactionParams) error {
+	_, err := q.db.ExecContext(ctx, insertSolanaTransaction, arg.ID, arg.BroadcastTime)
+	return err
+}
+
+const insertSolanaTransactionToAirdrop = `-- name: InsertSolanaTransactionToAirdrop :exec
+UPDATE airdrop_transports
+SET solana_id = $2 WHERE burn_id = $1
+`
+
+type InsertSolanaTransactionToAirdropParams struct {
+	BurnID   string
+	SolanaID sql.NullString
+}
+
+func (q *Queries) InsertSolanaTransactionToAirdrop(ctx context.Context, arg InsertSolanaTransactionToAirdropParams) error {
+	_, err := q.db.ExecContext(ctx, insertSolanaTransactionToAirdrop, arg.BurnID, arg.SolanaID)
+	return err
+}
+
+const insertSolanaTransactionToPremined = `-- name: InsertSolanaTransactionToPremined :exec
+UPDATE premined_transports
+SET solana_id = $2 WHERE burn_id = $1
+`
+
+type InsertSolanaTransactionToPreminedParams struct {
+	BurnID   string
+	SolanaID sql.NullString
+}
+
+func (q *Queries) InsertSolanaTransactionToPremined(ctx context.Context, arg InsertSolanaTransactionToPreminedParams) error {
+	_, err := q.db.ExecContext(ctx, insertSolanaTransactionToPremined, arg.BurnID, arg.SolanaID)
+	return err
+}
+
+const insertSolanaTransactionToQueue = `-- name: InsertSolanaTransactionToQueue :exec
+UPDATE queue_transports
+SET solana_id = $2 WHERE burn_id = $1
+`
+
+type InsertSolanaTransactionToQueueParams struct {
+	BurnID   string
+	SolanaID sql.NullString
+}
+
+func (q *Queries) InsertSolanaTransactionToQueue(ctx context.Context, arg InsertSolanaTransactionToQueueParams) error {
+	_, err := q.db.ExecContext(ctx, insertSolanaTransactionToQueue, arg.BurnID, arg.SolanaID)
+	return err
+}
+
+const insertToAirdrop = `-- name: InsertToAirdrop :exec
+INSERT INTO airdrop_transports (
+    burn_id,
+    solana_address,
+    supply_after,
+    supply_before,
+    burn_time
+) VALUES (
+    $1, $2, $3, $4, $5
+)
+`
+
+type InsertToAirdropParams struct {
+	BurnID        string
+	SolanaAddress string
+	SupplyAfter   int64
+	SupplyBefore  sql.NullInt64
+	BurnTime      sql.NullTime
+}
+
+func (q *Queries) InsertToAirdrop(ctx context.Context, arg InsertToAirdropParams) error {
+	_, err := q.db.ExecContext(ctx, insertToAirdrop,
+		arg.BurnID,
+		arg.SolanaAddress,
+		arg.SupplyAfter,
+		arg.SupplyBefore,
+		arg.BurnTime,
+	)
+	return err
+}
+
+const insertToPremined = `-- name: InsertToPremined :exec
+INSERT INTO premined_transports (
     burn_id,
     address,
-    amount,
-    total_supply,
+    supply_after,
+    supply_before,
+    burn_time,
+    solana_address
+) VALUES (
+    $1, $2, $3, $4, $5, $6
+)
+`
+
+type InsertToPreminedParams struct {
+	BurnID        string
+	Address       string
+	SupplyAfter   int64
+	SupplyBefore  sql.NullInt64
+	BurnTime      sql.NullTime
+	SolanaAddress string
+}
+
+func (q *Queries) InsertToPremined(ctx context.Context, arg InsertToPreminedParams) error {
+	_, err := q.db.ExecContext(ctx, insertToPremined,
+		arg.BurnID,
+		arg.Address,
+		arg.SupplyAfter,
+		arg.SupplyBefore,
+		arg.BurnTime,
+		arg.SolanaAddress,
+	)
+	return err
+}
+
+const insertToQueue = `-- name: InsertToQueue :exec
+INSERT INTO queue_transports (
+    burn_id,
+    solana_address,
+    supply_after,
+    supply_before,
     burn_time,
     queue_up
 ) VALUES (
@@ -23,107 +314,167 @@ INSERT INTO transport_records (
 )
 `
 
-type CreateRecordParams struct {
-	BurnID      string
-	Address     string
-	Amount      int64
-	TotalSupply sql.NullInt64
-	BurnTime    sql.NullTime
-	QueueUp     sql.NullTime
+type InsertToQueueParams struct {
+	BurnID        string
+	SolanaAddress string
+	SupplyAfter   int64
+	SupplyBefore  sql.NullInt64
+	BurnTime      sql.NullTime
+	QueueUp       sql.NullTime
 }
 
-func (q *Queries) CreateRecord(ctx context.Context, arg CreateRecordParams) error {
-	_, err := q.db.ExecContext(ctx, createRecord,
+func (q *Queries) InsertToQueue(ctx context.Context, arg InsertToQueueParams) error {
+	_, err := q.db.ExecContext(ctx, insertToQueue,
 		arg.BurnID,
-		arg.Address,
-		arg.Amount,
-		arg.TotalSupply,
+		arg.SolanaAddress,
+		arg.SupplyAfter,
+		arg.SupplyBefore,
 		arg.BurnTime,
 		arg.QueueUp,
 	)
 	return err
 }
 
-const insertEmissionSnapshot = `-- name: InsertEmissionSnapshot :exec
-INSERT INTO emission_history (
-    allowed_supply, update_time, tvl
+const insertUnconfirmed = `-- name: InsertUnconfirmed :exec
+INSERT INTO unconfirmed_burns (
+    burn_id, amount, solana_address, premined_address, time, tx_type
 ) VALUES (
-    $1, $2, $3
+    $1, $2, $3, $4, $5, $6
 )
 `
 
-type InsertEmissionSnapshotParams struct {
-	AllowedSupply sql.NullInt64
-	UpdateTime    sql.NullTime
-	Tvl           sql.NullInt64
+type InsertUnconfirmedParams struct {
+	BurnID          string
+	Amount          int64
+	SolanaAddress   string
+	PreminedAddress sql.NullString
+	Time            sql.NullTime
+	TxType          TransportType
 }
 
-func (q *Queries) InsertEmissionSnapshot(ctx context.Context, arg InsertEmissionSnapshotParams) error {
-	_, err := q.db.ExecContext(ctx, insertEmissionSnapshot, arg.AllowedSupply, arg.UpdateTime, arg.Tvl)
-	return err
-}
-
-const insertSolanaInfo = `-- name: InsertSolanaInfo :exec
-UPDATE transport_records
-SET invoice_time = $2,
-    solana_tx_time = $3,
-    solana_tx_id = $4
-WHERE burn_id = $1
-`
-
-type InsertSolanaInfoParams struct {
-	BurnID       string
-	InvoiceTime  sql.NullTime
-	SolanaTxTime sql.NullTime
-	SolanaTxID   sql.NullString
-}
-
-func (q *Queries) InsertSolanaInfo(ctx context.Context, arg InsertSolanaInfoParams) error {
-	_, err := q.db.ExecContext(ctx, insertSolanaInfo,
+func (q *Queries) InsertUnconfirmed(ctx context.Context, arg InsertUnconfirmedParams) error {
+	_, err := q.db.ExecContext(ctx, insertUnconfirmed,
 		arg.BurnID,
-		arg.InvoiceTime,
-		arg.SolanaTxTime,
-		arg.SolanaTxID,
+		arg.Amount,
+		arg.SolanaAddress,
+		arg.PreminedAddress,
+		arg.Time,
+		arg.TxType,
 	)
 	return err
 }
 
-const insertWhitelisted = `-- name: InsertWhitelisted :exec
-INSERT INTO premined_whitelist (
-    address, amount
-) VALUES (
-    $1, $2
-)
+const preminedSupply = `-- name: PreminedSupply :one
+SELECT MAX(supply_after) FROM premined_transports
 `
 
-type InsertWhitelistedParams struct {
-	Address string
-	Amount  int64
+func (q *Queries) PreminedSupply(ctx context.Context) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, preminedSupply)
+	var max interface{}
+	err := row.Scan(&max)
+	return max, err
 }
 
-func (q *Queries) InsertWhitelisted(ctx context.Context, arg InsertWhitelistedParams) error {
-	_, err := q.db.ExecContext(ctx, insertWhitelisted, arg.Address, arg.Amount)
+const queueSize = `-- name: QueueSize :one
+SELECT SUM(supply_after - supply_before) FROM queue_transports
+WHERE solana_id IS NULL
+`
+
+func (q *Queries) QueueSize(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, queueSize)
+	var sum int64
+	err := row.Scan(&sum)
+	return sum, err
+}
+
+const readFlag = `-- name: ReadFlag :one
+SELECT value FROM global_flags
+WHERE name = $1
+`
+
+func (q *Queries) ReadFlag(ctx context.Context, name string) (sql.NullBool, error) {
+	row := q.db.QueryRowContext(ctx, readFlag, name)
+	var value sql.NullBool
+	err := row.Scan(&value)
+	return value, err
+}
+
+const removeSolanaTransactionFromAirdrop = `-- name: RemoveSolanaTransactionFromAirdrop :exec
+UPDATE airdrop_transports
+SET solana_id = NULL WHERE burn_id = $1
+`
+
+func (q *Queries) RemoveSolanaTransactionFromAirdrop(ctx context.Context, burnID string) error {
+	_, err := q.db.ExecContext(ctx, removeSolanaTransactionFromAirdrop, burnID)
 	return err
 }
 
-const selectEmissionHistory = `-- name: SelectEmissionHistory :many
-SELECT id, allowed_supply, update_time, tvl FROM emission_history ORDER BY allowed_supply
+const removeSolanaTransactionFromPremined = `-- name: RemoveSolanaTransactionFromPremined :exec
+UPDATE premined_transports
+SET solana_id = NULL WHERE burn_id = $1
 `
 
-func (q *Queries) SelectEmissionHistory(ctx context.Context) ([]EmissionHistory, error) {
-	rows, err := q.db.QueryContext(ctx, selectEmissionHistory)
+func (q *Queries) RemoveSolanaTransactionFromPremined(ctx context.Context, burnID string) error {
+	_, err := q.db.ExecContext(ctx, removeSolanaTransactionFromPremined, burnID)
+	return err
+}
+
+const removeSolanaTransactionFromQueue = `-- name: RemoveSolanaTransactionFromQueue :exec
+UPDATE queue_transports
+SET solana_id = NULL WHERE burn_id = $1
+`
+
+func (q *Queries) RemoveSolanaTransactionFromQueue(ctx context.Context, burnID string) error {
+	_, err := q.db.ExecContext(ctx, removeSolanaTransactionFromQueue, burnID)
+	return err
+}
+
+const removeUnconfirmed = `-- name: RemoveUnconfirmed :exec
+DELETE FROM unconfirmed_burns WHERE burn_id = ANY($1::text[])
+`
+
+func (q *Queries) RemoveUnconfirmed(ctx context.Context, dollar_1 []string) error {
+	_, err := q.db.ExecContext(ctx, removeUnconfirmed, pq.Array(dollar_1))
+	return err
+}
+
+const selectAirdropRecord = `-- name: SelectAirdropRecord :one
+SELECT burn_id, solana_address, supply_after, supply_before, burn_time, solana_id FROM airdrop_transports
+WHERE burn_id = $1
+`
+
+func (q *Queries) SelectAirdropRecord(ctx context.Context, burnID string) (AirdropTransport, error) {
+	row := q.db.QueryRowContext(ctx, selectAirdropRecord, burnID)
+	var i AirdropTransport
+	err := row.Scan(
+		&i.BurnID,
+		&i.SolanaAddress,
+		&i.SupplyAfter,
+		&i.SupplyBefore,
+		&i.BurnTime,
+		&i.SolanaID,
+	)
+	return i, err
+}
+
+const selectAllPreminedLimits = `-- name: SelectAllPreminedLimits :many
+SELECT address, allowed_max, transported, blocked FROM premined_limits WHERE blocked = FALSE
+`
+
+func (q *Queries) SelectAllPreminedLimits(ctx context.Context) ([]PreminedLimit, error) {
+	rows, err := q.db.QueryContext(ctx, selectAllPreminedLimits)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []EmissionHistory
+	var items []PreminedLimit
 	for rows.Next() {
-		var i EmissionHistory
+		var i PreminedLimit
 		if err := rows.Scan(
-			&i.ID,
-			&i.AllowedSupply,
-			&i.UpdateTime,
-			&i.Tvl,
+			&i.Address,
+			&i.AllowedMax,
+			&i.Transported,
+			&i.Blocked,
 		); err != nil {
 			return nil, err
 		}
@@ -138,90 +489,204 @@ func (q *Queries) SelectEmissionHistory(ctx context.Context) ([]EmissionHistory,
 	return items, nil
 }
 
-const selectLatestEmissionSnapshot = `-- name: SelectLatestEmissionSnapshot :one
-SELECT allowed_supply, update_time, tvl
-FROM emission_history
-WHERE id = currval(pg_get_serial_sequence('emission_history', 'id'))
+const selectPremined = `-- name: SelectPremined :many
+SELECT address, allowed_max, transported, blocked FROM premined_limits WHERE (address = ANY($1::text[])) AND (blocked = FALSE)
 `
 
-type SelectLatestEmissionSnapshotRow struct {
-	AllowedSupply sql.NullInt64
-	UpdateTime    sql.NullTime
-	Tvl           sql.NullInt64
-}
-
-func (q *Queries) SelectLatestEmissionSnapshot(ctx context.Context) (SelectLatestEmissionSnapshotRow, error) {
-	row := q.db.QueryRowContext(ctx, selectLatestEmissionSnapshot)
-	var i SelectLatestEmissionSnapshotRow
-	err := row.Scan(&i.AllowedSupply, &i.UpdateTime, &i.Tvl)
-	return i, err
-}
-
-const selectRecord = `-- name: SelectRecord :one
-SELECT burn_id, address, amount, total_supply, burn_time, queue_up, invoice_time, solana_tx_time, solana_tx_id, solana_confirmed, completed FROM transport_records
-WHERE burn_id = $1
-`
-
-func (q *Queries) SelectRecord(ctx context.Context, burnID string) (TransportRecord, error) {
-	row := q.db.QueryRowContext(ctx, selectRecord, burnID)
-	var i TransportRecord
-	err := row.Scan(
-		&i.BurnID,
-		&i.Address,
-		&i.Amount,
-		&i.TotalSupply,
-		&i.BurnTime,
-		&i.QueueUp,
-		&i.InvoiceTime,
-		&i.SolanaTxTime,
-		&i.SolanaTxID,
-		&i.SolanaConfirmed,
-		&i.Completed,
-	)
-	return i, err
-}
-
-const selectUncompletedRecords = `-- name: SelectUncompletedRecords :many
-SELECT
-    burn_id,
-    address,
-    amount,
-    total_supply,
-    burn_time,
-    queue_up
-FROM transport_records
-WHERE ((completed = FALSE) AND (total_supply > $1) AND (amount + total_supply < $2))
-ORDER BY total_supply
-`
-
-type SelectUncompletedRecordsParams struct {
-	TotalSupply sql.NullInt64
-	Amount      int64
-}
-
-type SelectUncompletedRecordsRow struct {
-	BurnID      string
-	Address     string
-	Amount      int64
-	TotalSupply sql.NullInt64
-	BurnTime    sql.NullTime
-	QueueUp     sql.NullTime
-}
-
-func (q *Queries) SelectUncompletedRecords(ctx context.Context, arg SelectUncompletedRecordsParams) ([]SelectUncompletedRecordsRow, error) {
-	rows, err := q.db.QueryContext(ctx, selectUncompletedRecords, arg.TotalSupply, arg.Amount)
+func (q *Queries) SelectPremined(ctx context.Context, dollar_1 []string) ([]PreminedLimit, error) {
+	rows, err := q.db.QueryContext(ctx, selectPremined, pq.Array(dollar_1))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []SelectUncompletedRecordsRow
+	var items []PreminedLimit
 	for rows.Next() {
-		var i SelectUncompletedRecordsRow
+		var i PreminedLimit
+		if err := rows.Scan(
+			&i.Address,
+			&i.AllowedMax,
+			&i.Transported,
+			&i.Blocked,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectPreminedRecord = `-- name: SelectPreminedRecord :one
+SELECT burn_id, address, supply_after, supply_before, burn_time, solana_address, solana_id FROM premined_transports
+WHERE burn_id = $1
+`
+
+func (q *Queries) SelectPreminedRecord(ctx context.Context, burnID string) (PreminedTransport, error) {
+	row := q.db.QueryRowContext(ctx, selectPreminedRecord, burnID)
+	var i PreminedTransport
+	err := row.Scan(
+		&i.BurnID,
+		&i.Address,
+		&i.SupplyAfter,
+		&i.SupplyBefore,
+		&i.BurnTime,
+		&i.SolanaAddress,
+		&i.SolanaID,
+	)
+	return i, err
+}
+
+const selectQueueRecord = `-- name: SelectQueueRecord :one
+SELECT burn_id, solana_address, supply_after, supply_before, burn_time, queue_up, solana_id FROM queue_transports
+WHERE burn_id = $1
+`
+
+func (q *Queries) SelectQueueRecord(ctx context.Context, burnID string) (QueueTransport, error) {
+	row := q.db.QueryRowContext(ctx, selectQueueRecord, burnID)
+	var i QueueTransport
+	err := row.Scan(
+		&i.BurnID,
+		&i.SolanaAddress,
+		&i.SupplyAfter,
+		&i.SupplyBefore,
+		&i.BurnTime,
+		&i.QueueUp,
+		&i.SolanaID,
+	)
+	return i, err
+}
+
+const selectSolanaTransaction = `-- name: SelectSolanaTransaction :one
+SELECT id, broadcast_time, confirmation_time, confirmed FROM solana_transactions
+WHERE id = $1
+`
+
+func (q *Queries) SelectSolanaTransaction(ctx context.Context, id string) (SolanaTransaction, error) {
+	row := q.db.QueryRowContext(ctx, selectSolanaTransaction, id)
+	var i SolanaTransaction
+	err := row.Scan(
+		&i.ID,
+		&i.BroadcastTime,
+		&i.ConfirmationTime,
+		&i.Confirmed,
+	)
+	return i, err
+}
+
+const selectSolanaUnconfirmed = `-- name: SelectSolanaUnconfirmed :many
+SELECT burn_id FROM queue_transports
+INNER JOIN solana_transactions ON solana_transactions.id = queue_transports.solana_id
+WHERE ((queue_transports.solana_id IS NOT NULL) AND solana_transactions.confirmed = FALSE)
+UNION
+SELECT burn_id FROM premined_transports
+INNER JOIN solana_transactions ON solana_transactions.id = premined_transports.solana_id
+WHERE ((premined_transports.solana_id IS NOT NULL) AND solana_transactions.confirmed = FALSE)
+UNION
+SELECT burn_id FROM airdrop_transports
+INNER JOIN solana_transactions ON solana_transactions.id = airdrop_transports.solana_id
+WHERE ((airdrop_transports.solana_id IS NOT NULL) AND solana_transactions.confirmed = FALSE)
+`
+
+func (q *Queries) SelectSolanaUnconfirmed(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, selectSolanaUnconfirmed)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var burn_id string
+		if err := rows.Scan(&burn_id); err != nil {
+			return nil, err
+		}
+		items = append(items, burn_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectUncompletedAirdrop = `-- name: SelectUncompletedAirdrop :many
+SELECT burn_id, solana_address, supply_after, supply_before, burn_time, solana_id FROM airdrop_transports
+WHERE solana_id IS NULL
+ORDER BY supply_after
+`
+
+func (q *Queries) SelectUncompletedAirdrop(ctx context.Context) ([]AirdropTransport, error) {
+	rows, err := q.db.QueryContext(ctx, selectUncompletedAirdrop)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AirdropTransport
+	for rows.Next() {
+		var i AirdropTransport
 		if err := rows.Scan(
 			&i.BurnID,
-			&i.Address,
-			&i.Amount,
-			&i.TotalSupply,
+			&i.SolanaAddress,
+			&i.SupplyAfter,
+			&i.SupplyBefore,
+			&i.BurnTime,
+			&i.SolanaID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectUncompletedFromQueue = `-- name: SelectUncompletedFromQueue :many
+SELECT
+    burn_id,
+    solana_address,
+    supply_after,
+    supply_before,
+    burn_time,
+    queue_up
+FROM queue_transports
+WHERE ((solana_id IS NULL) AND (supply_after < $1))
+ORDER BY supply_after
+`
+
+type SelectUncompletedFromQueueRow struct {
+	BurnID        string
+	SolanaAddress string
+	SupplyAfter   int64
+	SupplyBefore  sql.NullInt64
+	BurnTime      sql.NullTime
+	QueueUp       sql.NullTime
+}
+
+func (q *Queries) SelectUncompletedFromQueue(ctx context.Context, supplyAfter int64) ([]SelectUncompletedFromQueueRow, error) {
+	rows, err := q.db.QueryContext(ctx, selectUncompletedFromQueue, supplyAfter)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SelectUncompletedFromQueueRow
+	for rows.Next() {
+		var i SelectUncompletedFromQueueRow
+		if err := rows.Scan(
+			&i.BurnID,
+			&i.SolanaAddress,
+			&i.SupplyAfter,
+			&i.SupplyBefore,
 			&i.BurnTime,
 			&i.QueueUp,
 		); err != nil {
@@ -238,25 +703,30 @@ func (q *Queries) SelectUncompletedRecords(ctx context.Context, arg SelectUncomp
 	return items, nil
 }
 
-const selectWhitelisted = `-- name: SelectWhitelisted :many
-SELECT address, amount FROM premined_whitelist
+const selectUncompletedPremined = `-- name: SelectUncompletedPremined :many
+SELECT burn_id, address, supply_after, supply_before, burn_time, solana_address, solana_id FROM premined_transports
+WHERE solana_id IS NULL
+ORDER BY supply_after
 `
 
-type SelectWhitelistedRow struct {
-	Address string
-	Amount  int64
-}
-
-func (q *Queries) SelectWhitelisted(ctx context.Context) ([]SelectWhitelistedRow, error) {
-	rows, err := q.db.QueryContext(ctx, selectWhitelisted)
+func (q *Queries) SelectUncompletedPremined(ctx context.Context) ([]PreminedTransport, error) {
+	rows, err := q.db.QueryContext(ctx, selectUncompletedPremined)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []SelectWhitelistedRow
+	var items []PreminedTransport
 	for rows.Next() {
-		var i SelectWhitelistedRow
-		if err := rows.Scan(&i.Address, &i.Amount); err != nil {
+		var i PreminedTransport
+		if err := rows.Scan(
+			&i.BurnID,
+			&i.Address,
+			&i.SupplyAfter,
+			&i.SupplyBefore,
+			&i.BurnTime,
+			&i.SolanaAddress,
+			&i.SolanaID,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -270,34 +740,92 @@ func (q *Queries) SelectWhitelisted(ctx context.Context) ([]SelectWhitelistedRow
 	return items, nil
 }
 
-const setCompleted = `-- name: SetCompleted :exec
-UPDATE transport_records
-SET completed = $2
+const selectUnconfirmed = `-- name: SelectUnconfirmed :many
+SELECT burn_id, amount, solana_address, premined_address, time, tx_type FROM unconfirmed_burns WHERE time < $1 ORDER BY time
+`
+
+func (q *Queries) SelectUnconfirmed(ctx context.Context, time sql.NullTime) ([]UnconfirmedBurn, error) {
+	rows, err := q.db.QueryContext(ctx, selectUnconfirmed, time)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []UnconfirmedBurn
+	for rows.Next() {
+		var i UnconfirmedBurn
+		if err := rows.Scan(
+			&i.BurnID,
+			&i.Amount,
+			&i.SolanaAddress,
+			&i.PreminedAddress,
+			&i.Time,
+			&i.TxType,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const selectUnconfirmedRecord = `-- name: SelectUnconfirmedRecord :one
+SELECT burn_id, amount, solana_address, premined_address, time, tx_type FROM unconfirmed_burns
 WHERE burn_id = $1
 `
 
-type SetCompletedParams struct {
-	BurnID    string
-	Completed bool
+func (q *Queries) SelectUnconfirmedRecord(ctx context.Context, burnID string) (UnconfirmedBurn, error) {
+	row := q.db.QueryRowContext(ctx, selectUnconfirmedRecord, burnID)
+	var i UnconfirmedBurn
+	err := row.Scan(
+		&i.BurnID,
+		&i.Amount,
+		&i.SolanaAddress,
+		&i.PreminedAddress,
+		&i.Time,
+		&i.TxType,
+	)
+	return i, err
 }
 
-func (q *Queries) SetCompleted(ctx context.Context, arg SetCompletedParams) error {
-	_, err := q.db.ExecContext(ctx, setCompleted, arg.BurnID, arg.Completed)
-	return err
-}
-
-const setSolanaConfirmed = `-- name: SetSolanaConfirmed :exec
-UPDATE transport_records
-SET solana_confirmed = $2
-WHERE burn_id = $1
+const uncompletedQueueSupply = `-- name: UncompletedQueueSupply :one
+SELECT MAX(supply_after) FROM queue_transports
 `
 
-type SetSolanaConfirmedParams struct {
-	BurnID          string
-	SolanaConfirmed bool
+func (q *Queries) UncompletedQueueSupply(ctx context.Context) (interface{}, error) {
+	row := q.db.QueryRowContext(ctx, uncompletedQueueSupply)
+	var max interface{}
+	err := row.Scan(&max)
+	return max, err
 }
 
-func (q *Queries) SetSolanaConfirmed(ctx context.Context, arg SetSolanaConfirmedParams) error {
-	_, err := q.db.ExecContext(ctx, setSolanaConfirmed, arg.BurnID, arg.SolanaConfirmed)
+const unconfirmedAmount = `-- name: UnconfirmedAmount :one
+SELECT SUM(amount) FROM unconfirmed_burns WHERE tx_type = $1
+`
+
+func (q *Queries) UnconfirmedAmount(ctx context.Context, txType TransportType) (int64, error) {
+	row := q.db.QueryRowContext(ctx, unconfirmedAmount, txType)
+	var sum int64
+	err := row.Scan(&sum)
+	return sum, err
+}
+
+const updateFlag = `-- name: UpdateFlag :exec
+UPDATE global_flags SET value = $2
+WHERE name = $1
+`
+
+type UpdateFlagParams struct {
+	Name  string
+	Value sql.NullBool
+}
+
+func (q *Queries) UpdateFlag(ctx context.Context, arg UpdateFlagParams) error {
+	_, err := q.db.ExecContext(ctx, updateFlag, arg.Name, arg.Value)
 	return err
 }

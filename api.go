@@ -7,33 +7,46 @@ import (
 	"time"
 
 	"gitlab.com/scpcorp/ScPrime/types"
+	"gitlab.com/scpcorp/spf-transporter/common"
 )
 
 type Service interface {
-	CheckUtxoApproval(ctx context.Context, req *CheckUtxoApprovalRequest) (*CheckUtxoApprovalResponse, error)
+	PreminedList(ctx context.Context, req *PreminedListRequest) (*PreminedListResponse, error)
+	CheckAllowance(ctx context.Context, req *CheckAllowanceRequest) (*CheckAllowanceResponse, error)
 	SubmitScpTx(ctx context.Context, req *SubmitScpTxRequest) (*SubmitScpTxResponse, error)
 	TransportStatus(ctx context.Context, req *TransportStatusRequest) (*TransportStatusResponse, error)
 	History(ctx context.Context, req *HistoryRequest) (*HistoryResponse, error)
 }
 
-type CheckUtxoApprovalRequest struct {
-	Utxos []SpfUtxo `json:"utxos"`
+type PreminedListRequest struct {
 }
 
-type CheckUtxoApprovalResponse struct {
-	TransportAllowed bool            `json:"transport_allowed"`
-	MaxAmount        *types.Currency `json:"max_amount"`
-	WaitTimeEstimate *time.Duration  `json:"wait_time_estimate"`
+type PreminedListResponse struct {
+	Premined map[types.UnlockHash]common.PreminedRecord `json:"premined"`
+}
+
+type CheckAllowanceRequest struct {
+	PreminedUnlockHashes *[]types.UnlockHash `json:"premined_unlock_hashes,omitempty"`
+}
+
+type AmountWithTimeEstimate struct {
+	Amount       types.Currency `json:"amount"`
+	WaitEstimate time.Duration  `json:"wait_estimate"`
+}
+
+type CheckAllowanceResponse struct {
+	Airdrop  AmountWithTimeEstimate                      `json:"airdrop"`
+	Premined map[types.UnlockHash]AmountWithTimeEstimate `json:"premined"`
+	Regular  AmountWithTimeEstimate                      `json:"regular"`
 }
 
 type SubmitScpTxRequest struct {
-	BurnID types.TransactionID `json:"burn_id"`
+	Transaction types.Transaction `json:"transaction"`
 }
 
 type SubmitScpTxResponse struct {
-	WaitTimeEstimate *time.Duration `json:"wait_time_estimate"`
-	QueuePosition    int            `json:"queue_position"`
-	SpfAmountAhead   types.Currency `json:"spf_amount_ahead"`
+	WaitTimeEstimate time.Duration   `json:"wait_time_estimate"`
+	SpfAmountAhead   *types.Currency `json:"spf_amount_ahead"`
 }
 
 type TransportStatusRequest struct {
@@ -41,7 +54,7 @@ type TransportStatusRequest struct {
 }
 
 type TransportStatusResponse struct {
-	Status TransportStatus `json:"status"`
+	Status common.TransportStatus `json:"status"`
 }
 
 type HistoryRequest struct {
@@ -49,9 +62,9 @@ type HistoryRequest struct {
 }
 
 type HistoryResponse struct {
-	Records    []TransportRecord `json:"records"`
-	NextPageID string            `json:"next_page_id"`
-	More       bool              `json:"more"`
+	Records    []common.TransportRecord `json:"records"`
+	NextPageID string                   `json:"next_page_id"`
+	More       bool                     `json:"more"`
 }
 
 type Error struct {

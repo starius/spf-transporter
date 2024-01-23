@@ -14,7 +14,7 @@ import (
 	fuzz "github.com/google/gofuzz"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/scpcorp/ScPrime/types"
-	"gitlab.com/scpcorp/spf-transporter"
+	"gitlab.com/scpcorp/spf-transporter/common"
 )
 
 const EnvPostgresConfig = "POSTGRES_CONFIG"
@@ -64,16 +64,16 @@ func TestIntegrationCreateRecord(t *testing.T) {
 	require.NoError(t, err, "failed to create TransporterDB")
 	ctx := context.Background()
 
-	var record transporter.TransportRecord
+	var record common.TransportRecord
 	f.Fuzz(&record.TransportRequest)
 	require.NoError(t, tdb.CreateRecord(ctx, &record.TransportRequest))
 	gotRecord, err := tdb.Record(ctx, record.BurnID)
 	require.NoError(t, err)
 	require.Equal(t, record, *gotRecord)
 
-	var solanaInfo transporter.SolanaTxInfo
+	var solanaInfo common.SolanaTxInfo
 	f.Fuzz(&solanaInfo)
-	info := make(map[types.TransactionID]transporter.SolanaTxInfo)
+	info := make(map[types.TransactionID]common.SolanaTxInfo)
 	info[record.BurnID] = solanaInfo
 	require.NoError(t, tdb.AddSolanaTransaction(ctx, info))
 	gotRecord, err = tdb.Record(ctx, record.BurnID)
@@ -92,7 +92,7 @@ func TestIntegrationPreminedWhitelist(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, premined)
 
-	var wantPremined []transporter.SpfUtxo
+	var wantPremined []common.SpfUtxo
 	f.Fuzz(&wantPremined)
 	t.Logf("Inserting %d premined UTXOs)", len(wantPremined))
 	require.NoError(t, tdb.InsertPremined(ctx, wantPremined))
@@ -100,7 +100,7 @@ func TestIntegrationPreminedWhitelist(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, wantPremined, premined)
 
-	var newPremined []transporter.SpfUtxo
+	var newPremined []common.SpfUtxo
 	f.Fuzz(&newPremined)
 	t.Logf("Inserting %d premined UTXOs)", len(newPremined))
 	require.NoError(t, tdb.InsertPremined(ctx, newPremined))
@@ -121,7 +121,7 @@ func TestIntegrationQueueMethods(t *testing.T) {
 	oneHasting := types.NewCurrency64(1)
 	var totalSupply types.Currency
 	f := defaultFuzzer()
-	f = f.Funcs(func(inv *transporter.SpfxInvoice, c fuzz.Continue) {
+	f = f.Funcs(func(inv *common.SpfxInvoice, c fuzz.Continue) {
 		f.Fuzz(&inv.Address)
 		f.Fuzz(&inv.Amount)
 		inv.TotalSupply = totalSupply
@@ -132,8 +132,8 @@ func TestIntegrationQueueMethods(t *testing.T) {
 	ctx := context.Background()
 
 	type testCase struct {
-		solanaInfo transporter.SolanaTxInfo
-		records    []transporter.TransportRequest
+		solanaInfo common.SolanaTxInfo
+		records    []common.TransportRequest
 	}
 	cases := make([]testCase, 100)
 	f.Fuzz(&cases)
@@ -178,7 +178,7 @@ func TestIntegrationQueueMethods(t *testing.T) {
 		require.Equal(t, tc.records, next)
 
 		// Add solana info.
-		info := make(map[types.TransactionID]transporter.SolanaTxInfo, len(tc.records))
+		info := make(map[types.TransactionID]common.SolanaTxInfo, len(tc.records))
 		ids := make([]types.TransactionID, 0, len(tc.records))
 		for _, record := range tc.records {
 			info[record.BurnID] = tc.solanaInfo
@@ -192,7 +192,7 @@ func TestIntegrationQueueMethods(t *testing.T) {
 		for _, req := range tc.records {
 			gotRecord, err := tdb.Record(ctx, req.BurnID)
 			require.NoError(t, err)
-			wantRecord := &transporter.TransportRecord{
+			wantRecord := &common.TransportRecord{
 				TransportRequest: req,
 				SolanaTxInfo:     tc.solanaInfo,
 				Completed:        true,
