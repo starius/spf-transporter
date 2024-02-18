@@ -1,0 +1,22 @@
+# vim
+*.swp
+*.swo
+
+# build artifacts
+analyze
+cover
+fullcover
+release
+
+# pdflatex
+doc/whitepaper.aux
+doc/whitepaper.log
+doc/whitepaper.pdf
+
+# IntelliJ IDEA
+.idea
+sia.iml
+
+# VSCode debug files
+debug.test
+.vscode

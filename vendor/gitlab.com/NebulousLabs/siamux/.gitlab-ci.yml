@@ -1,0 +1,31 @@
+stages:
+  - lint
+  - test
+
+default: &default_params
+  image: nebulouslabs/sia-ci
+
+## Define the default test parameters.
+.default_test: &default_test_params
+  ## Merge the contents of the 'default_params' alias
+  <<: *default_params
+  stage: test
+
+lint:
+  stage: lint
+  script:
+    - make vet
+    - make lint
+    - make markdown-spellcheck
+
+mux-tests:
+  <<: *default_test_params
+  script:
+    - go get -d ./...
+    - make test-long pkgs="./mux" run=.
+
+siamux-tests:
+  <<: *default_test_params
+  script:
+    - go get -d ./...
+    - make test-long pkgs="./" run=.

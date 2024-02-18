@@ -1,0 +1,35 @@
+stages:
+  - lint
+  - test
+
+default: &default_params
+  ## Run tests with most recent golang version to take advantage of any perf
+  ## improvements.
+  image: golang:latest
+
+## Define the default test parameters.
+.default_test: &default_test_params
+  ## Merge the contents of the 'default_params' alias
+  <<: *default_params
+  stage: test
+
+lint:
+  stage: lint
+  script:
+    ## This is the recommended way to install golang-ci lint.
+    - wget -O- -nv https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s v1.23.8
+    - apt-get update
+    - apt-get -y install python3-pip
+    - pip3 install codespell
+    - go get gitlab.com/NebulousLabs/analyze
+    - go get -d ./...
+    - ./bin/golangci-lint run -c .golangci.yml ./...
+    - make lint-analyze
+    - make markdown-spellcheck
+    - make test
+
+tests:
+  <<: *default_test_params
+  script:
+    - go get -d ./...
+    - make test-long pkgs="./" run=.
