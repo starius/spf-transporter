@@ -79,13 +79,14 @@ func (s *ScPrime) ValidTransaction(tx *types.Transaction) error {
 }
 
 func (s *ScPrime) ExtractSolanaAddress(tx *types.Transaction) (common.SolanaAddress, error) {
-	if len(tx.ArbitraryData) != 1 {
-		return common.SolanaAddress{}, fmt.Errorf("length of ArbitraryData must be 1, got %d", len(tx.ArbitraryData))
+	for _, ad := range tx.ArbitraryData {
+		addr, err := common.ExtractSolanaAddress(ad)
+		if err != nil {
+			continue
+		}
+		return addr, nil
 	}
-	if len(tx.ArbitraryData[0]) != common.SolanaAddrLen {
-		return common.SolanaAddress{}, fmt.Errorf("incorrect solana address len %d, must be 32", len(tx.ArbitraryData[0]))
-	}
-	return common.SolanaAddress(tx.ArbitraryData[0]), nil
+	return common.SolanaAddress{}, errors.New("no arbitrary data matching SolanaAddress was found")
 }
 
 func (s *ScPrime) Close() error {
