@@ -6,29 +6,29 @@ SELECT
     exists (SELECT 1 FROM queue_transports WHERE queue_transports.burn_id = $1) AS queue;
 
 -- name: CompletedQueueSupply :one
-SELECT MAX(supply_after) FROM queue_transports
+SELECT COALESCE(MAX(supply_after), 0) FROM queue_transports
 INNER JOIN solana_transactions ON solana_transactions.id = queue_transports.solana_id
 WHERE solana_transactions.confirmed = TRUE;
 
 -- name: ConfirmedPreminedSupply :one
-SELECT MAX(supply_after) FROM premined_transports
+SELECT COALESCE(MAX(supply_after), 0) FROM premined_transports
 WHERE solana_id IS NOT NULL;
 
 -- name: ConfirmedAirdropSupply :one
-SELECT MAX(supply_after) FROM airdrop_transports
+SELECT COALESCE(MAX(supply_after), 0) FROM airdrop_transports
 WHERE solana_id IS NOT NULL;
 
 -- name: UnconfirmedAmount :one
-SELECT SUM(amount) FROM unconfirmed_burns WHERE tx_type = $1;
+SELECT COALESCE(SUM(amount), 0) FROM unconfirmed_burns WHERE tx_type = $1;
 
 -- name: PreminedSupply :one
-SELECT MAX(supply_after) FROM premined_transports;
+SELECT COALESCE(MAX(supply_after), 0) FROM premined_transports;
 
 -- name: AirdropSupply :one
-SELECT MAX(supply_after) FROM airdrop_transports;
+SELECT COALESCE(MAX(supply_after), 0) FROM airdrop_transports;
 
 -- name: UncompletedQueueSupply :one
-SELECT MAX(supply_after) FROM queue_transports;
+SELECT COALESCE(MAX(supply_after), 0) FROM queue_transports;
 
 -- name: QueueSize :one
 SELECT SUM(supply_after - supply_before) FROM queue_transports

@@ -375,7 +375,11 @@ func (tdb *TransporterDB) unconfirmedAmount(ctx context.Context, tq *Queries, t 
 	} else if err != nil {
 		return types.ZeroCurrency, err
 	}
-	return types.NewCurrency64(uint64(unconfirmedAmount)), nil
+	unconfirmedAmountInt64, ok := unconfirmedAmount.(int64)
+	if !ok {
+		return types.ZeroCurrency, fmt.Errorf("wrong type: %T", unconfirmedAmount)
+	}
+	return types.NewCurrency64(uint64(unconfirmedAmountInt64)), nil
 }
 
 func emptyInterfaceToCurrency(val interface{}) (types.Currency, error) {

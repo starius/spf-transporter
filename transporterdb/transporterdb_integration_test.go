@@ -13,7 +13,7 @@ import (
 	fuzz "github.com/google/gofuzz"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/scpcorp/ScPrime/types"
-	//"gitlab.com/scpcorp/spf-transporter/common"
+	"gitlab.com/scpcorp/spf-transporter/common"
 )
 
 const EnvPostgresConfig = "POSTGRES_CONFIG"
@@ -64,6 +64,24 @@ func TestIntegrationQueueSize(t *testing.T) {
 	queueSize, err := tdb.QueueSize(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "0", queueSize.String())
+}
+
+func TestIntegrationPreminedLimits(t *testing.T) {
+	tdb := NewTestTransporterDB(t, defaultSettings)
+	ctx := context.Background()
+
+	addr2limit, err := tdb.PreminedLimits(ctx)
+	require.NoError(t, err)
+	require.Equal(t, map[types.UnlockHash]common.PreminedRecord{}, addr2limit)
+}
+
+func TestIntegrationConfirmedSupply(t *testing.T) {
+	tdb := NewTestTransporterDB(t, defaultSettings)
+	ctx := context.Background()
+
+	supplyInfo, err := tdb.ConfirmedSupply(ctx)
+	require.NoError(t, err)
+	require.Equal(t, common.SupplyInfo{}, supplyInfo)
 }
 
 /*

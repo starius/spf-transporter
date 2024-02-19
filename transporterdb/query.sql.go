@@ -13,14 +13,14 @@ import (
 )
 
 const airdropSupply = `-- name: AirdropSupply :one
-SELECT MAX(supply_after) FROM airdrop_transports
+SELECT COALESCE(MAX(supply_after), 0) FROM airdrop_transports
 `
 
 func (q *Queries) AirdropSupply(ctx context.Context) (interface{}, error) {
 	row := q.db.QueryRowContext(ctx, airdropSupply)
-	var max interface{}
-	err := row.Scan(&max)
-	return max, err
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
 }
 
 const burnIDExists = `-- name: BurnIDExists :one
@@ -51,16 +51,16 @@ func (q *Queries) BurnIDExists(ctx context.Context, burnID string) (BurnIDExists
 }
 
 const completedQueueSupply = `-- name: CompletedQueueSupply :one
-SELECT MAX(supply_after) FROM queue_transports
+SELECT COALESCE(MAX(supply_after), 0) FROM queue_transports
 INNER JOIN solana_transactions ON solana_transactions.id = queue_transports.solana_id
 WHERE solana_transactions.confirmed = TRUE
 `
 
 func (q *Queries) CompletedQueueSupply(ctx context.Context) (interface{}, error) {
 	row := q.db.QueryRowContext(ctx, completedQueueSupply)
-	var max interface{}
-	err := row.Scan(&max)
-	return max, err
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
 }
 
 const confirmSolanaTransaction = `-- name: ConfirmSolanaTransaction :exec
@@ -80,27 +80,27 @@ func (q *Queries) ConfirmSolanaTransaction(ctx context.Context, arg ConfirmSolan
 }
 
 const confirmedAirdropSupply = `-- name: ConfirmedAirdropSupply :one
-SELECT MAX(supply_after) FROM airdrop_transports
+SELECT COALESCE(MAX(supply_after), 0) FROM airdrop_transports
 WHERE solana_id IS NOT NULL
 `
 
 func (q *Queries) ConfirmedAirdropSupply(ctx context.Context) (interface{}, error) {
 	row := q.db.QueryRowContext(ctx, confirmedAirdropSupply)
-	var max interface{}
-	err := row.Scan(&max)
-	return max, err
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
 }
 
 const confirmedPreminedSupply = `-- name: ConfirmedPreminedSupply :one
-SELECT MAX(supply_after) FROM premined_transports
+SELECT COALESCE(MAX(supply_after), 0) FROM premined_transports
 WHERE solana_id IS NOT NULL
 `
 
 func (q *Queries) ConfirmedPreminedSupply(ctx context.Context) (interface{}, error) {
 	row := q.db.QueryRowContext(ctx, confirmedPreminedSupply)
-	var max interface{}
-	err := row.Scan(&max)
-	return max, err
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
 }
 
 const decreasePremined = `-- name: DecreasePremined :exec
@@ -365,14 +365,14 @@ func (q *Queries) InsertUnconfirmed(ctx context.Context, arg InsertUnconfirmedPa
 }
 
 const preminedSupply = `-- name: PreminedSupply :one
-SELECT MAX(supply_after) FROM premined_transports
+SELECT COALESCE(MAX(supply_after), 0) FROM premined_transports
 `
 
 func (q *Queries) PreminedSupply(ctx context.Context) (interface{}, error) {
 	row := q.db.QueryRowContext(ctx, preminedSupply)
-	var max interface{}
-	err := row.Scan(&max)
-	return max, err
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
 }
 
 const queueSize = `-- name: QueueSize :one
@@ -794,25 +794,25 @@ func (q *Queries) SelectUnconfirmedRecord(ctx context.Context, burnID string) (U
 }
 
 const uncompletedQueueSupply = `-- name: UncompletedQueueSupply :one
-SELECT MAX(supply_after) FROM queue_transports
+SELECT COALESCE(MAX(supply_after), 0) FROM queue_transports
 `
 
 func (q *Queries) UncompletedQueueSupply(ctx context.Context) (interface{}, error) {
 	row := q.db.QueryRowContext(ctx, uncompletedQueueSupply)
-	var max interface{}
-	err := row.Scan(&max)
-	return max, err
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
 }
 
 const unconfirmedAmount = `-- name: UnconfirmedAmount :one
-SELECT SUM(amount) FROM unconfirmed_burns WHERE tx_type = $1
+SELECT COALESCE(SUM(amount), 0) FROM unconfirmed_burns WHERE tx_type = $1
 `
 
-func (q *Queries) UnconfirmedAmount(ctx context.Context, txType TransportType) (int64, error) {
+func (q *Queries) UnconfirmedAmount(ctx context.Context, txType TransportType) (interface{}, error) {
 	row := q.db.QueryRowContext(ctx, unconfirmedAmount, txType)
-	var sum int64
-	err := row.Scan(&sum)
-	return sum, err
+	var coalesce interface{}
+	err := row.Scan(&coalesce)
+	return coalesce, err
 }
 
 const updateFlag = `-- name: UpdateFlag :exec
