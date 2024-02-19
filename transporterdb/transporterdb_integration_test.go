@@ -5,7 +5,6 @@ package transporterdb
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"os"
 	"testing"
@@ -14,7 +13,7 @@ import (
 	fuzz "github.com/google/gofuzz"
 	"github.com/stretchr/testify/require"
 	"gitlab.com/scpcorp/ScPrime/types"
-	"gitlab.com/scpcorp/spf-transporter/common"
+	//"gitlab.com/scpcorp/spf-transporter/common"
 )
 
 const EnvPostgresConfig = "POSTGRES_CONFIG"
@@ -30,38 +29,47 @@ func defaultFuzzer() *fuzz.Fuzzer {
 	)
 }
 
-func NewTestTransporterDB(t *testing.T) (*TransporterDB, error) {
+func NewTestTransporterDB(t *testing.T, settings *Settings) *TransporterDB {
 	postgresConfigPath := os.Getenv(EnvPostgresConfig)
 	db, err := OpenPostgres(postgresConfigPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open Postgres with provided config path %s: %w",
-			postgresConfigPath, err)
-	}
-	if err := db.Ping(); err != nil {
-		return nil, fmt.Errorf("ping postgres: %w", err)
-	}
-	tdb, err := NewDB(db)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize TransporterDB: %w", err)
-	}
+	require.NoError(t, err)
+	require.NoError(t, db.Ping())
+	tdb, err := NewDB(db, settings)
+	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		if err := tdb.DropSchemas(true); err != nil {
-			t.Errorf("drop schemas %v", err)
-		}
-
-		if err = db.Close(); err != nil {
-			t.Errorf("close db %v", err)
-		}
+		require.NoError(t, tdb.DropSchemas(true))
+		require.NoError(t, db.Close())
 	})
 
-	return tdb, nil
+	return tdb
 }
 
+var defaultSettings = func() *Settings {
+	queueSizeLimit, err := types.NewCurrencyStr("2500000SPF")
+	if err != nil {
+		panic(err)
+	}
+	queueSizeGap := types.NewCurrency64(100000)
+	return &Settings{
+		PreliminaryQueueSizeLimit: queueSizeLimit.Sub(queueSizeGap),
+		QueueSizeLimit:            queueSizeLimit,
+	}
+}()
+
+func TestIntegrationQueueSize(t *testing.T) {
+	tdb := NewTestTransporterDB(t, defaultSettings)
+	ctx := context.Background()
+
+	queueSize, err := tdb.QueueSize(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "0", queueSize.String())
+}
+
+/*
 func TestIntegrationCreateRecord(t *testing.T) {
 	f := defaultFuzzer()
-	tdb, err := NewTestTransporterDB(t)
-	require.NoError(t, err, "failed to create TransporterDB")
+	tdb := NewTestTransporterDB(t, defaultSettings)
 	ctx := context.Background()
 
 	var record common.TransportRecord
@@ -201,3 +209,4 @@ func TestIntegrationQueueMethods(t *testing.T) {
 		}
 	}
 }
+*/

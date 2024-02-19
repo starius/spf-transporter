@@ -37,6 +37,10 @@ DROP TABLE IF EXISTS airdrop_transports
 	dropQueueTransportsTable = `
 DROP TABLE IF EXISTS queue_transports
 `
+
+	dropTransportType = `
+DROP TYPE IF EXISTS transport_type
+`
 	createGlobalFlagsTable = `
 CREATE TABLE IF NOT EXISTS global_flags (
     name  text PRIMARY KEY,
@@ -116,6 +120,7 @@ var dropSchemas = []struct {
 	{dropPreminedTransportsTable, "drop premined transports table"},
 	{dropAirdropTransportsTable, "drop airdrop transports table"},
 	{dropQueueTransportsTable, "drop queue transports table"},
+	{dropTransportType, "drop transport_type type"},
 }
 
 var createSchemas = []struct {
