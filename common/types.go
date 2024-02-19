@@ -24,6 +24,8 @@ const (
 	Airdrop TransportType = iota
 	Premined
 	Regular
+
+	TransportTypeCount
 )
 
 type TransportStatus int
@@ -34,6 +36,8 @@ const (
 	InTheQueue
 	SolanaTxCreated
 	Completed
+
+	TransportStatusCount
 )
 
 type PublicKey string
