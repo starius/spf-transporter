@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"sync"
 	"time"
 
@@ -376,9 +377,17 @@ func (tdb *TransporterDB) unconfirmedAmount(ctx context.Context, tq *Queries, t 
 	} else if err != nil {
 		return types.ZeroCurrency, err
 	}
-	unconfirmedAmountInt64, ok := unconfirmedAmount.(int64)
-	if !ok {
-		return types.ZeroCurrency, fmt.Errorf("wrong type: %T", unconfirmedAmount)
+	var unconfirmedAmountInt64 int64
+	switch a := unconfirmedAmount.(type) {
+	case int64:
+		unconfirmedAmountInt64 = a
+	case []byte:
+		unconfirmedAmountInt64, err = strconv.ParseInt(string(a), 10, 64)
+		if err != nil {
+			return types.ZeroCurrency, fmt.Errorf("failed to parse %q as int: %w", string(a), err)
+		}
+	default:
+		return types.ZeroCurrency, fmt.Errorf("wrong type: %T, value: %v", unconfirmedAmount, unconfirmedAmount)
 	}
 	return types.NewCurrency64(uint64(unconfirmedAmountInt64)), nil
 }
