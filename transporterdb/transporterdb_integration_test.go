@@ -118,6 +118,33 @@ func TestIntegrationRunRetryableTransaction(t *testing.T) {
 	wg.Wait()
 }
 
+func TestIntegrationQueueNotEmpty(t *testing.T) {
+	f := defaultFuzzer()
+	tdb := NewTestTransporterDB(t, defaultSettings)
+	ctx := context.Background()
+
+	queueSize, err := tdb.QueueSize(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "0", queueSize.String())
+
+	var infos []*common.UnconfirmedTxInfo
+	var sum types.Currency
+	for i := 0; i < 10; i++ {
+		info := &common.UnconfirmedTxInfo{}
+		f.Fuzz(info)
+		info.PreminedAddr = nil
+		info.Type = common.Regular
+		_, err := tdb.AddUnconfirmedScpTx(ctx, info)
+		require.NoError(t, err)
+		infos = append(infos, info)
+		sum = sum.Add(info.Amount)
+	}
+
+	queueSize, err = tdb.QueueSize(ctx)
+	require.NoError(t, err)
+	require.Equal(t, sum.String(), queueSize.String())
+}
+
 /*
 func TestIntegrationCreateRecord(t *testing.T) {
 	f := defaultFuzzer()
