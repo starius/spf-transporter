@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS unconfirmed_burns (
 	createSolanaTransactionsTable = `
 CREATE TABLE IF NOT EXISTS solana_transactions (
     id                text PRIMARY KEY,
-    broadcast_time    timestamp,
+    broadcast_time    timestamp NOT NULL,
     confirmation_time timestamp,
     confirmed         boolean NOT NULL DEFAULT FALSE
 );
@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS solana_transactions (
 CREATE TABLE IF NOT EXISTS premined_limits (
     address     text PRIMARY KEY,
     allowed_max bigint NOT NULL,
-    transported bigint,
+    transported bigint NOT NULL DEFAULT 0,
     blocked     boolean NOT NULL DEFAULT FALSE
 );
 `
@@ -642,6 +642,10 @@ func (tdb *TransporterDB) AddUnconfirmedScpTx(ctx context.Context, info *common.
 		// Check if burn ID is unique.
 		if err := tdb.checkBurnIDUnique(innerCtx, tq, info.BurnID); err != nil {
 			return err
+		}
+
+		if info.Amount.IsZero() {
+			return errors.New("zero amounts are not allowed")
 		}
 
 		// Check the limits (airdrop, premined, queue size).
