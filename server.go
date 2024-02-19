@@ -34,6 +34,7 @@ type Storage interface {
 	RecordsWithUnconfirmedSolana(ctx context.Context) ([]common.TransportRecord, error)
 	SetFlag(ctx context.Context, name string, value bool) error
 	GetFlag(ctx context.Context, name string) (bool, error)
+	Close()
 }
 
 type Solana interface {
@@ -54,20 +55,21 @@ type ScpBlockchain interface {
 	IsTxConfirmed(id types.TransactionID) (bool, error)
 	ExtractSolanaAddress(tx *types.Transaction) (common.SolanaAddress, error)
 	ValidTransaction(tx *types.Transaction) error
+	Close() error
 }
 
 type Settings struct {
-	SolanaTxDecayTime        time.Duration `json:"solana_tx_decay_time"`
-	QueueCheckInterval       time.Duration `json:"queue_check_interval"`
-	UnconfirmedCheckInterval time.Duration `json:"unconfirmed_check_interval"`
-	ScpTxConfirmationTime    time.Duration `json:"scp_tx_confirmation_time"`
+	SolanaTxDecayTime        time.Duration
+	QueueCheckInterval       time.Duration
+	UnconfirmedCheckInterval time.Duration
+	ScpTxConfirmationTime    time.Duration
 
-	TransportMin   types.Currency           `json:"transport_min"`
-	TransportMax   types.Currency           `json:"transport_limit"`
-	QueueSizeLimit types.Currency           `json:"queue_size_limit"`
-	QueueLockLimit types.Currency           `json:"queue_lock_limit"` // Is only used if QueueMode is ReleaseAllAtOnce.
-	QueueLockGap   time.Duration            `json:"queue_lock_gap"`
-	QueueMode      common.QueueHandlingMode `json:"queue_mode"`
+	TransportMin   types.Currency
+	TransportMax   types.Currency
+	QueueSizeLimit types.Currency
+	QueueLockLimit types.Currency
+	QueueLockGap   time.Duration
+	QueueMode      common.QueueHandlingMode
 }
 
 type Server struct {
@@ -408,7 +410,9 @@ func (s *Server) History(ctx context.Context, req *HistoryRequest) (*HistoryResp
 	return &HistoryResponse{}, errors.New("not implemented")
 }
 
-func (s *Server) Close() {
+func (s *Server) Close() error {
 	s.cancel()
 	s.stopWg.Wait()
+	s.storage.Close()
+	return s.scpBlockchain.Close()
 }
