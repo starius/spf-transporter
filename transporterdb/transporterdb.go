@@ -742,13 +742,22 @@ func (tdb *TransporterDB) UnconfirmedBefore(ctx context.Context, before time.Tim
 
 func (tdb *TransporterDB) insertTransport(ctx context.Context, tq *Queries, tx common.UnconfirmedTxInfo, prevSupply types.Currency, curTime time.Time) error {
 	newSupply := prevSupply.Add(tx.Amount)
+
+	supplyBefore := sql.NullInt64{
+		Valid: true,
+		Int64: prevSupply.Big().Int64(),
+	}
+	if supplyBefore.Int64 == 0 {
+		supplyBefore.Valid = false
+	}
+
 	switch tx.Type {
 	case common.Airdrop:
 		if err := tq.InsertToAirdrop(ctx, InsertToAirdropParams{
 			BurnID:        tx.BurnID.String(),
 			SolanaAddress: tx.SolanaAddr.String(),
 			SupplyAfter:   newSupply.Big().Int64(),
-			SupplyBefore:  sql.NullInt64{Valid: true, Int64: prevSupply.Big().Int64()},
+			SupplyBefore:  supplyBefore,
 			BurnTime:      sql.NullTime{Valid: true, Time: tx.Time},
 		}); err != nil {
 			return fmt.Errorf("failed to insert airdrop: %w", err)
@@ -758,7 +767,7 @@ func (tdb *TransporterDB) insertTransport(ctx context.Context, tq *Queries, tx c
 			BurnID:        tx.BurnID.String(),
 			Address:       tx.PreminedAddr.String(),
 			SupplyAfter:   newSupply.Big().Int64(),
-			SupplyBefore:  sql.NullInt64{Valid: true, Int64: prevSupply.Big().Int64()},
+			SupplyBefore:  supplyBefore,
 			BurnTime:      sql.NullTime{Valid: true, Time: tx.Time},
 			SolanaAddress: tx.SolanaAddr.String(),
 		}); err != nil {
@@ -769,7 +778,7 @@ func (tdb *TransporterDB) insertTransport(ctx context.Context, tq *Queries, tx c
 			BurnID:        tx.BurnID.String(),
 			SolanaAddress: tx.SolanaAddr.String(),
 			SupplyAfter:   newSupply.Big().Int64(),
-			SupplyBefore:  sql.NullInt64{Valid: true, Int64: prevSupply.Big().Int64()},
+			SupplyBefore:  supplyBefore,
 			BurnTime:      sql.NullTime{Valid: true, Time: tx.Time},
 			QueueUp:       sql.NullTime{Valid: true, Time: curTime},
 		}); err != nil {
