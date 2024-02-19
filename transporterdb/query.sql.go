@@ -741,7 +741,7 @@ func (q *Queries) SelectUncompletedPremined(ctx context.Context) ([]PreminedTran
 }
 
 const selectUnconfirmed = `-- name: SelectUnconfirmed :many
-SELECT burn_id, amount, solana_address, premined_address, time, tx_type FROM unconfirmed_burns WHERE time < $1 ORDER BY time
+SELECT burn_id, amount, solana_address, premined_address, height, time, tx_type FROM unconfirmed_burns WHERE time < $1 ORDER BY time
 `
 
 func (q *Queries) SelectUnconfirmed(ctx context.Context, time sql.NullTime) ([]UnconfirmedBurn, error) {
@@ -758,6 +758,7 @@ func (q *Queries) SelectUnconfirmed(ctx context.Context, time sql.NullTime) ([]U
 			&i.Amount,
 			&i.SolanaAddress,
 			&i.PreminedAddress,
+			&i.Height,
 			&i.Time,
 			&i.TxType,
 		); err != nil {
@@ -775,7 +776,7 @@ func (q *Queries) SelectUnconfirmed(ctx context.Context, time sql.NullTime) ([]U
 }
 
 const selectUnconfirmedRecord = `-- name: SelectUnconfirmedRecord :one
-SELECT burn_id, amount, solana_address, premined_address, time, tx_type FROM unconfirmed_burns
+SELECT burn_id, amount, solana_address, premined_address, height, time, tx_type FROM unconfirmed_burns
 WHERE burn_id = $1
 `
 
@@ -787,10 +788,26 @@ func (q *Queries) SelectUnconfirmedRecord(ctx context.Context, burnID string) (U
 		&i.Amount,
 		&i.SolanaAddress,
 		&i.PreminedAddress,
+		&i.Height,
 		&i.Time,
 		&i.TxType,
 	)
 	return i, err
+}
+
+const setUnconfirmedBurnHeight = `-- name: SetUnconfirmedBurnHeight :exec
+UPDATE unconfirmed_burns
+SET height = $1 WHERE burn_id = $2
+`
+
+type SetUnconfirmedBurnHeightParams struct {
+	Height sql.NullInt64
+	BurnID string
+}
+
+func (q *Queries) SetUnconfirmedBurnHeight(ctx context.Context, arg SetUnconfirmedBurnHeightParams) error {
+	_, err := q.db.ExecContext(ctx, setUnconfirmedBurnHeight, arg.Height, arg.BurnID)
+	return err
 }
 
 const uncompletedQueueSupply = `-- name: UncompletedQueueSupply :one

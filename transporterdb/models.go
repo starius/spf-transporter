@@ -82,6 +82,7 @@ type UnconfirmedBurn struct {
 	Amount          int64
 	SolanaAddress   string
 	PreminedAddress sql.NullString
+	Height          sql.NullInt64
 	Time            sql.NullTime
 	TxType          TransportType
 }

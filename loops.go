@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"gitlab.com/scpcorp/ScPrime/types"
 	"gitlab.com/scpcorp/spf-transporter/common"
 )
 
@@ -37,6 +38,11 @@ func (s *Server) processUnconfirmed(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to fetch unconfirmed: %w", err)
 	}
+	curHeight, err := s.scpBlockchain.CurrentHeight()
+	if err != nil {
+		return fmt.Errorf("failed to get current ScPrime blockchain height: %w", err)
+	}
+	var setHeight []types.TransactionID
 	var toRemove, toConfirm []common.UnconfirmedTxInfo
 	for _, utx := range unconfirmedTxs {
 		confirmed, err := s.scpBlockchain.IsTxConfirmed(utx.BurnID)
@@ -46,15 +52,28 @@ func (s *Server) processUnconfirmed(ctx context.Context) error {
 		if !confirmed {
 			log.Printf("%s burn tx is still not confirmed after %s, removing", utx.BurnID.String(), s.settings.ScpTxConfirmationTime.String())
 			toRemove = append(toRemove, utx)
-		} else {
+			continue
+		}
+		// Is confirmed.
+		if utx.Height == nil {
+			setHeight = append(setHeight, utx.BurnID)
+		} else if int(curHeight-*utx.Height) >= s.settings.ScpTxConfirmations {
 			toConfirm = append(toConfirm, utx)
 		}
 	}
-	if _, err := s.storage.ConfirmUnconfirmed(ctx, toConfirm, s.now()); err != nil {
-		return fmt.Errorf("failed to confirm unconfirmed: %w", err)
+	// Update the height just in case IsTxConfirmed() calls took too long.
+	curHeight, err = s.scpBlockchain.CurrentHeight()
+	if err != nil {
+		return fmt.Errorf("failed to get current ScPrime blockchain height: %w", err)
+	}
+	if err := s.storage.SetConfirmationHeight(ctx, setHeight, curHeight); err != nil {
+		return fmt.Errorf("failed to set confirmation height: %w", err)
 	}
 	if err := s.storage.RemoveUnconfirmed(ctx, toRemove); err != nil {
 		return fmt.Errorf("failed to remove unconfirmed: %w", err)
+	}
+	if _, err := s.storage.ConfirmUnconfirmed(ctx, toConfirm, s.now()); err != nil {
+		return fmt.Errorf("failed to confirm unconfirmed: %w", err)
 	}
 	return nil
 }

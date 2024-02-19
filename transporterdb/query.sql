@@ -191,6 +191,10 @@ INSERT INTO unconfirmed_burns (
     $1, $2, $3, $4, $5, $6
 );
 
+-- name: SetUnconfirmedBurnHeight :exec
+UPDATE unconfirmed_burns
+SET height = $1 WHERE burn_id = $2;
+
 -- name: SelectUnconfirmed :many
 SELECT * FROM unconfirmed_burns WHERE time < $1 ORDER BY time;
 

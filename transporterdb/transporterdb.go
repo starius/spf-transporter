@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS unconfirmed_burns (
     amount           bigint NOT NULL,
     solana_address   text NOT NULL,
     premined_address text,
+    height           bigint,
     time             timestamp,
     tx_type          transport_type
 );
@@ -691,14 +692,19 @@ func unconfirmedTxInfoFromSql(inf UnconfirmedBurn) (*common.UnconfirmedTxInfo, e
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse Solana addresss: %w", err)
 	}
-	return &common.UnconfirmedTxInfo{
+	utx := &common.UnconfirmedTxInfo{
 		BurnID:       parseTransactionID(inf.BurnID),
 		Amount:       types.NewCurrency64(uint64(inf.Amount)),
 		SolanaAddr:   solanaAddr,
 		PreminedAddr: preminedAddr,
 		Time:         inf.Time.Time,
 		Type:         transportTypeFromSql(inf.TxType),
-	}, nil
+	}
+	if inf.Height.Valid {
+		height := types.BlockHeight(uint64(inf.Height.Int64))
+		utx.Height = &height
+	}
+	return utx, nil
 }
 
 func (tdb *TransporterDB) UnconfirmedBefore(ctx context.Context, before time.Time) ([]common.UnconfirmedTxInfo, error) {
@@ -809,6 +815,23 @@ func (tdb *TransporterDB) ConfirmUnconfirmed(ctx context.Context, txs []common.U
 		return nil, err
 	}
 	return reqs, nil
+}
+
+func (tdb *TransporterDB) SetConfirmationHeight(ctx context.Context, ids []types.TransactionID, height types.BlockHeight) error {
+	lid := uuid.NewString()
+	log.Printf("TransporterDB: SetConfirmationHeight started (%s)\n", lid)
+	defer log.Printf("TransporterDB: SetConfirmationHeight exited (%s)\n", lid)
+	return tdb.runRetryableTransaction(ctx, func(innerCtx context.Context, tq *Queries) error {
+		for _, id := range ids {
+			if err := tq.SetUnconfirmedBurnHeight(innerCtx, SetUnconfirmedBurnHeightParams{
+				Height: sql.NullInt64{Valid: true, Int64: int64(height)},
+				BurnID: id.String(),
+			}); err != nil {
+				return fmt.Errorf("failed to set unconfirmed burn height: %w", err)
+			}
+		}
+		return nil
+	})
 }
 
 func (tdb *TransporterDB) RemoveUnconfirmed(ctx context.Context, txs []common.UnconfirmedTxInfo) error {

@@ -21,6 +21,7 @@ type Storage interface {
 	CheckAllowance(ctx context.Context, preminedAddrs []types.UnlockHash) (*common.Allowance, error)
 	AddUnconfirmedScpTx(ctx context.Context, info *common.UnconfirmedTxInfo) (*common.QueueAllowance, error)
 	UnconfirmedBefore(ctx context.Context, before time.Time) ([]common.UnconfirmedTxInfo, error)
+	SetConfirmationHeight(ctx context.Context, ids []types.TransactionID, height types.BlockHeight) error
 	ConfirmUnconfirmed(ctx context.Context, txs []common.UnconfirmedTxInfo, curTime time.Time) ([]common.TransportRequest, error)
 	RemoveUnconfirmed(ctx context.Context, txs []common.UnconfirmedTxInfo) error
 	AddSolanaTransaction(ctx context.Context, burnID types.TransactionID, t common.TransportType, info common.SolanaTxInfo) error
@@ -55,6 +56,7 @@ type ScpBlockchain interface {
 	IsTxConfirmed(id types.TransactionID) (bool, error)
 	ExtractSolanaAddress(tx *types.Transaction) (common.SolanaAddress, error)
 	ValidTransaction(tx *types.Transaction) error
+	CurrentHeight() (types.BlockHeight, error)
 	Close() error
 }
 
@@ -63,6 +65,7 @@ type Settings struct {
 	QueueCheckInterval       time.Duration
 	UnconfirmedCheckInterval time.Duration
 	ScpTxConfirmationTime    time.Duration
+	ScpTxConfirmations       int
 
 	TransportMin   types.Currency
 	TransportMax   types.Currency

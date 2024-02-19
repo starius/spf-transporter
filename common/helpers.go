@@ -6,12 +6,13 @@ import (
 	"gitlab.com/scpcorp/ScPrime/types"
 )
 
+// Airdrop is not implemented yet.
 func HasAirdrop(unlockHashes []types.UnlockHash) bool {
-	for _, uh := range unlockHashes {
+	/*for _, uh := range unlockHashes {
 		if uh == AirdropUnlockHash {
 			return true
 		}
-	}
+	}*/
 	return false
 }
 
@@ -33,24 +34,6 @@ func ExtractSiafundUnlockHashes(tx *types.Transaction) (res []types.UnlockHash) 
 			uniqueUn[uh] = true
 			res = append(res, uh)
 		}
-	}
-	return
-}
-
-func ExtractUnlockHashes(utxos []SpfUtxo) (res []types.UnlockHash) {
-	uniqueUn := make(map[types.UnlockHash]bool)
-	for _, utxo := range utxos {
-		if _, ok := uniqueUn[utxo.UnlockHash]; !ok {
-			uniqueUn[utxo.UnlockHash] = true
-			res = append(res, utxo.UnlockHash)
-		}
-	}
-	return
-}
-
-func SumUtxos(utxos []SpfUtxo) (sum types.Currency) {
-	for _, utxo := range utxos {
-		sum = sum.Add(utxo.Value)
 	}
 	return
 }

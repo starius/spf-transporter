@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS unconfirmed_burns (
     amount           bigint NOT NULL,
     solana_address   text NOT NULL,
     premined_address text,
+    height           bigint,
     time             timestamp,
     tx_type          transport_type
 );

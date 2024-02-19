@@ -129,6 +129,7 @@ type UnconfirmedTxInfo struct {
 	BurnID       types.TransactionID `json:"burn_id"`
 	Amount       types.Currency      `json:"amount"`
 	SolanaAddr   SolanaAddress       `json:"solana_addr"`
+	Height       *types.BlockHeight  `json:"block_height"`
 	Time         time.Time           `json:"time"`
 	PreminedAddr *types.UnlockHash   `json:"premined_addr"`
 	Type         TransportType       `json:"type"`

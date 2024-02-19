@@ -58,14 +58,21 @@ func (s *ScPrime) IsTxConfirmed(id types.TransactionID) (bool, error) {
 	return s.tp.TransactionConfirmed(id)
 }
 
+func (s *ScPrime) CurrentHeight() (types.BlockHeight, error) {
+	if !s.cs.Synced() {
+		return types.BlockHeight(0), errors.New("consensus is not synced")
+	}
+	return s.cs.Height(), nil
+}
+
 func (s *ScPrime) ValidTransaction(tx *types.Transaction) error {
 	for _, sig := range tx.TransactionSignatures {
 		if !sig.CoveredFields.WholeTransaction {
 			return errors.New("CoveredFields must have WholeTransaction flag set")
 		}
 	}
-	currnetHeight := s.cs.Height()
-	if err := tx.StandaloneValid(currnetHeight); err != nil {
+	currentHeight := s.cs.Height()
+	if err := tx.StandaloneValid(currentHeight); err != nil {
 		return err
 	}
 	return nil

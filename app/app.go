@@ -33,6 +33,7 @@ type Config struct {
 	QueueCheckInterval       time.Duration `long:"queue-check-interval" env:"QUEUE_CHECK_INTERVAL" default:"30m" `
 	UnconfirmedCheckInterval time.Duration `long:"unconfirmed-check-interval" env:"UNCONFIRMED_CHECK_INTERVAL" default:"10m"`
 	ScpTxConfirmationTime    time.Duration `long:"scp-tx-confirmation-time" env:"SCP_TX_CONFIRMATION_TIME" default:"1h"`
+	ScpTxConfirmations       int           `long:"scp-tx-confirmations" env:"SCP_TX_CONFIRMATIONS" default:"6"`
 
 	TransportMin   string                   `long:"transport-min" env:"TRANSPORT_MIN" default:"100SPF"`
 	TransportMax   string                   `long:"transport-limit" env:"TRANSPORT_MAX" default:"20000SPF"`
@@ -68,6 +69,7 @@ func TransporterSettingsFromConfig(c Config) (*transporter.Settings, error) {
 		QueueCheckInterval:       c.QueueCheckInterval,
 		UnconfirmedCheckInterval: c.UnconfirmedCheckInterval,
 		ScpTxConfirmationTime:    c.ScpTxConfirmationTime,
+		ScpTxConfirmations:       c.ScpTxConfirmations,
 		TransportMin:             transportMin,
 		TransportMax:             transportMax,
 		QueueSizeLimit:           queueSizeLimit,
