@@ -8,7 +8,9 @@ require (
 	github.com/gagliardetto/solana-go v1.8.4
 	github.com/google/gofuzz v1.0.0
 	github.com/google/uuid v1.5.0
+	github.com/jessevdk/go-flags v1.5.0
 	github.com/lib/pq v1.10.9
+	github.com/mr-tron/base58 v1.2.0
 	github.com/starius/api2 v0.2.18
 	github.com/stretchr/testify v1.8.4
 	gitlab.com/scpcorp/ScPrime v1.8.4
@@ -46,7 +48,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/mostynb/zstdpool-freelist v0.0.0-20201229113212-927304c0c3b1 // indirect
-	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/streamingfast/logging v0.0.0-20220405224725-2755dab2ce75 // indirect
