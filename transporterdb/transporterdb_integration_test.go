@@ -145,6 +145,88 @@ func TestIntegrationQueueNotEmpty(t *testing.T) {
 	require.Equal(t, sum.String(), queueSize.String())
 }
 
+func TestIntegrationPremined(t *testing.T) {
+	f := defaultFuzzer()
+	tdb := NewTestTransporterDB(t, defaultSettings)
+	ctx := context.Background()
+
+	t.Run("empty premined limits", func(t *testing.T) {
+		addr2limit, err := tdb.PreminedLimits(ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[types.UnlockHash]common.PreminedRecord{}, addr2limit)
+	})
+
+	var premined [2]common.SpfUtxo
+	f.Fuzz(&premined)
+
+	t.Run("add two addresses with premined limits", func(t *testing.T) {
+		require.NoError(t, tdb.InsertPremined(ctx, premined[:]))
+	})
+
+	t.Run("get premined limits - exist, but not used yet", func(t *testing.T) {
+		addr2limit, err := tdb.PreminedLimits(ctx)
+		require.NoError(t, err)
+		require.Equal(t, map[types.UnlockHash]common.PreminedRecord{
+			premined[0].UnlockHash: common.PreminedRecord{
+				Limit: premined[0].Value,
+			},
+			premined[1].UnlockHash: common.PreminedRecord{
+				Limit: premined[1].Value,
+			},
+		}, addr2limit)
+	})
+
+	t.Run("get premined limit for one address", func(t *testing.T) {
+		addr2limit, err := tdb.FindPremined(ctx, []types.UnlockHash{premined[0].UnlockHash})
+		require.NoError(t, err)
+		require.Equal(t, map[types.UnlockHash]common.PreminedRecord{
+			premined[0].UnlockHash: common.PreminedRecord{
+				Limit: premined[0].Value,
+			},
+		}, addr2limit)
+	})
+
+	t.Run("UncompletedPremined (empty)", func(t *testing.T) {
+		reqs, err := tdb.UncompletedPremined(ctx)
+		require.NoError(t, err)
+		require.Empty(t, reqs)
+	})
+
+	t.Run("add unconfirmed tx using 1/3 of limit of first address", func(t *testing.T) {
+		info := &common.UnconfirmedTxInfo{}
+		f.Fuzz(info)
+		info.PreminedAddr = &premined[0].UnlockHash
+		info.Type = common.Premined
+
+		t.Run("zero amount does not work", func(t *testing.T) {
+			info.Amount = premined[0].Value.Div64(3)
+			_, err := tdb.AddUnconfirmedScpTx(ctx, info)
+			require.Error(t, err)
+		})
+
+		info.Amount = premined[0].Value.Div64(3)
+		queueAllowance, err := tdb.AddUnconfirmedScpTx(ctx, info)
+		require.NoError(t, err)
+		require.Nil(t, queueAllowance)
+	})
+
+	t.Run("get premined limit for the used address", func(t *testing.T) {
+		addr2limit, err := tdb.FindPremined(ctx, []types.UnlockHash{premined[0].UnlockHash})
+		require.NoError(t, err)
+		require.Equal(t, map[types.UnlockHash]common.PreminedRecord{
+			premined[0].UnlockHash: common.PreminedRecord{
+				Limit: premined[0].Value,
+			},
+		}, addr2limit)
+	})
+
+	t.Run("UncompletedPremined after adding unconfirmed tx (empty)", func(t *testing.T) {
+		reqs, err := tdb.UncompletedPremined(ctx)
+		require.NoError(t, err)
+		require.Empty(t, reqs)
+	})
+}
+
 /*
 func TestIntegrationCreateRecord(t *testing.T) {
 	f := defaultFuzzer()
