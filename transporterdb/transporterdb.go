@@ -50,7 +50,13 @@ CREATE TABLE IF NOT EXISTS global_flags (
 );
 `
 	createUnconfirmedBurnsTable = `
-CREATE TYPE transport_type AS ENUM ('airdrop', 'premined', 'regular');
+DO $$
+BEGIN
+       IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'transport_type') THEN
+               CREATE TYPE transport_type AS ENUM ('airdrop', 'premined', 'regular');
+       END IF;
+END$$;
+
 CREATE TABLE IF NOT EXISTS unconfirmed_burns (
     burn_id          text PRIMARY KEY,
     amount           bigint NOT NULL,
