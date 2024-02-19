@@ -35,7 +35,9 @@ func New(dir string) (*ScPrime, error) {
 	for !cs.Synced() {
 		select {
 		case err := <-errChan:
-			return nil, fmt.Errorf("consensus initialization error: %w", err)
+			if err != nil {
+				return nil, fmt.Errorf("consensus initialization error: %w", err)
+			}
 		case <-time.After(time.Second):
 		}
 	}
