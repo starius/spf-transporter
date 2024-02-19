@@ -5,8 +5,8 @@ package transporterdb
 
 import (
 	"context"
-	"math"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -24,7 +24,10 @@ func defaultFuzzer() *fuzz.Fuzzer {
 			*t = time.Unix(c.Int63n(50257894000), 0).UTC()
 		},
 		func(cur *types.Currency, c fuzz.Continue) {
-			*cur = types.NewCurrency64(uint64(c.Int63n(math.MaxInt64)))
+			*cur = types.NewCurrency64(uint64(c.Intn(1000)))
+		},
+		func(tt *common.TransportType, c fuzz.Continue) {
+			*tt = common.TransportType(c.Intn(int(common.TransportTypeCount)))
 		},
 	)
 }
@@ -82,6 +85,37 @@ func TestIntegrationConfirmedSupply(t *testing.T) {
 	supplyInfo, err := tdb.ConfirmedSupply(ctx)
 	require.NoError(t, err)
 	require.Equal(t, common.SupplyInfo{}, supplyInfo)
+}
+
+func TestIntegrationRunRetryableTransaction(t *testing.T) {
+	f := defaultFuzzer()
+	tdb := NewTestTransporterDB(t, defaultSettings)
+	ctx := context.Background()
+
+	var infos []*common.UnconfirmedTxInfo
+	for i := 0; i < 10; i++ {
+		info := &common.UnconfirmedTxInfo{}
+		f.Fuzz(info)
+		info.PreminedAddr = nil
+		info.Type = common.Regular
+		_, err := tdb.AddUnconfirmedScpTx(ctx, info)
+		require.NoError(t, err)
+		infos = append(infos, info)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(infos))
+	now := time.Now()
+	for _, info := range infos {
+		info := info
+		go func() {
+			defer wg.Done()
+			_, err := tdb.ConfirmUnconfirmed(ctx, []common.UnconfirmedTxInfo{*info}, now)
+			require.NoError(t, err)
+		}()
+	}
+
+	wg.Wait()
 }
 
 /*

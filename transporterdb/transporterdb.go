@@ -12,6 +12,7 @@ import (
 
 	"github.com/avast/retry-go"
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"gitlab.com/scpcorp/ScPrime/types"
 	"gitlab.com/scpcorp/spf-transporter/common"
 )
@@ -285,7 +286,14 @@ func (tdb *TransporterDB) runRetryableTransaction(ctx context.Context, fn tdbMet
 		retry.Context(ctx),
 		retry.Delay(time.Second),
 		retry.RetryIf(func(err error) bool {
-			return errors.Is(err, txCommitError{})
+			if errors.As(err, &txCommitError{}) {
+				return true
+			}
+			var pqErr *pq.Error
+			if errors.As(err, &pqErr) && pqErr.Code.Name() == "unique_violation" {
+				return true
+			}
+			return false
 		}),
 	)
 }
