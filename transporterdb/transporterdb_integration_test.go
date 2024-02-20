@@ -69,6 +69,21 @@ func TestIntegrationQueueSize(t *testing.T) {
 	require.Equal(t, "0", queueSize.String())
 }
 
+func TestIntegrationFlags(t *testing.T) {
+	tdb := NewTestTransporterDB(t, defaultSettings)
+	ctx := context.Background()
+
+	flag, err := tdb.GetFlag(ctx, "test_flag")
+	require.NoError(t, err)
+	require.False(t, flag)
+
+	require.NoError(t, tdb.SetFlag(ctx, "test_flag", true))
+
+	flag, err = tdb.GetFlag(ctx, "test_flag")
+	require.NoError(t, err)
+	require.True(t, flag)
+}
+
 func TestIntegrationPreminedLimits(t *testing.T) {
 	tdb := NewTestTransporterDB(t, defaultSettings)
 	ctx := context.Background()
