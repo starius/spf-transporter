@@ -148,7 +148,9 @@ func TestIntegrationQueueNotEmpty(t *testing.T) {
 	var sum types.Currency
 	for i := 0; i < 10; i++ {
 		info := &common.UnconfirmedTxInfo{}
-		f.Fuzz(info)
+		for info.Amount.IsZero() {
+			f.Fuzz(info)
+		}
 		info.PreminedAddr = nil
 		info.Type = common.Regular
 		_, err := tdb.AddUnconfirmedScpTx(ctx, info)
@@ -182,6 +184,11 @@ func TestIntegrationPremined(t *testing.T) {
 
 	var premined [2]common.SpfAddressBalance
 	f.Fuzz(&premined)
+	// Make sure the values are >= 3. It is needed because we
+	// devide by 3 to get the number of funds to use and expect
+	// some coins to be left.
+	premined[0].Value = premined[0].Value.Add64(3)
+	premined[1].Value = premined[1].Value.Add64(3)
 
 	t.Run("CheckAllowance before adding limits", func(t *testing.T) {
 		_, err := tdb.CheckAllowance(ctx, []types.UnlockHash{
@@ -257,6 +264,10 @@ func TestIntegrationPremined(t *testing.T) {
 		})
 
 		info.Amount = premined[0].Value.Div64(3)
+		if info.Amount.IsZero() {
+			info.Amount = types.NewCurrency64(1)
+		}
+
 		queueAllowance, err := tdb.AddUnconfirmedScpTx(ctx, info)
 		require.NoError(t, err)
 		require.Nil(t, queueAllowance)
@@ -421,7 +432,11 @@ func TestIntegrationPremined(t *testing.T) {
 			err := tdb.AddSolanaTransaction(ctx, info.BurnID, common.Premined, solanaTxInfo)
 			require.ErrorContains(t, err, "id_not_empty")
 		})
-		f.Fuzz(&solanaTxInfo)
+
+		for solanaTxInfo.SolanaTx == "" || solanaTxInfo.BroadcastTime == (time.Time{}) {
+			f.Fuzz(&solanaTxInfo)
+		}
+
 		require.NoError(t, tdb.AddSolanaTransaction(ctx, info.BurnID, common.Premined, solanaTxInfo))
 	})
 
