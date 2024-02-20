@@ -3,10 +3,13 @@ package transporterdb
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +19,24 @@ import (
 	"gitlab.com/scpcorp/ScPrime/types"
 	"gitlab.com/scpcorp/spf-transporter/common"
 )
+
+//go:embed schema.sql
+var schemaSql string
+
+var creations = regexp.MustCompile(`CREATE[^;]+;`).FindAllString(schemaSql, -1)
+
+func creationSql(tableName string) string {
+	hits := make([]string, 0, 1)
+	for _, c := range creations {
+		if strings.Contains(c, tableName+" (") {
+			hits = append(hits, c)
+		}
+	}
+	if len(hits) != 1 {
+		panic(fmt.Sprintf("expect exactly one hit for %s, got %d: %v", tableName, len(hits), hits))
+	}
+	return hits[0]
+}
 
 const (
 	dropGlobalFlagsTable = `
@@ -43,12 +64,10 @@ DROP TABLE IF EXISTS queue_transports
 	dropTransportType = `
 DROP TYPE IF EXISTS transport_type
 `
-	createGlobalFlagsTable = `
-CREATE TABLE IF NOT EXISTS global_flags (
-    name  text PRIMARY KEY,
-    value boolean
-);
-`
+)
+
+var (
+	createGlobalFlagsTable      = creationSql("global_flags")
 	createUnconfirmedBurnsTable = `
 DO $$
 BEGIN
@@ -57,65 +76,12 @@ BEGIN
        END IF;
 END$$;
 
-CREATE TABLE IF NOT EXISTS unconfirmed_burns (
-    burn_id          text PRIMARY KEY,
-    amount           bigint NOT NULL,
-    solana_address   text NOT NULL,
-    premined_address text,
-    height           bigint,
-    time             timestamp,
-    tx_type          transport_type
-);
-`
-	createSolanaTransactionsTable = `
-CREATE TABLE IF NOT EXISTS solana_transactions (
-    id                text PRIMARY KEY,
-    broadcast_time    timestamp NOT NULL,
-    confirmation_time timestamp,
-    confirmed         boolean NOT NULL DEFAULT FALSE
-);
-`
-	createPreminedLimitsTable = `
-CREATE TABLE IF NOT EXISTS premined_limits (
-    address     text PRIMARY KEY,
-    allowed_max bigint NOT NULL,
-    transported bigint NOT NULL DEFAULT 0,
-    blocked     boolean NOT NULL DEFAULT FALSE
-);
-`
-	createPreminedTransportsTable = `
-CREATE TABLE IF NOT EXISTS premined_transports (
-    burn_id        text PRIMARY KEY,
-    address        text NOT NULL REFERENCES premined_limits(address),
-    supply_after   bigint UNIQUE NOT NULL,
-    supply_before  bigint UNIQUE REFERENCES premined_transports(supply_after),
-    burn_time      timestamp,
-    solana_address text NOT NULL,
-    solana_id      text REFERENCES solana_transactions(id)
-);
-`
-	createAirdropTransportsTable = `
-CREATE TABLE IF NOT EXISTS airdrop_transports (
-    burn_id        text PRIMARY KEY,
-    solana_address text NOT NULL,
-    supply_after   bigint UNIQUE NOT NULL,
-    supply_before  bigint UNIQUE REFERENCES airdrop_transports(supply_after),
-    burn_time      timestamp,
-    solana_id      text REFERENCES solana_transactions(id)
-);
-
-`
-	createQueueTransportsTable = `
-CREATE TABLE IF NOT EXISTS queue_transports (
-    burn_id        text PRIMARY KEY,
-    solana_address text NOT NULL,
-    supply_after   bigint UNIQUE NOT NULL,
-    supply_before  bigint UNIQUE REFERENCES queue_transports(supply_after),
-    burn_time      timestamp,
-    queue_up       timestamp,
-    solana_id      text REFERENCES solana_transactions(id)
-);
-`
+` + creationSql("unconfirmed_burns")
+	createSolanaTransactionsTable = creationSql("solana_transactions")
+	createPreminedLimitsTable     = creationSql("premined_limits")
+	createPreminedTransportsTable = creationSql("premined_transports")
+	createAirdropTransportsTable  = creationSql("airdrop_transports")
+	createQueueTransportsTable    = creationSql("queue_transports")
 )
 
 var dropSchemas = []struct {
