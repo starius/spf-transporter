@@ -156,6 +156,13 @@ func TestIntegrationPremined(t *testing.T) {
 		require.Equal(t, map[types.UnlockHash]common.PreminedRecord{}, addr2limit)
 	})
 
+	t.Run("zero amount does not work", func(t *testing.T) {
+		var premined [2]common.SpfUtxo
+		f.Fuzz(&premined)
+		premined[0].Value = types.ZeroCurrency
+		require.Error(t, tdb.InsertPremined(ctx, premined[:]))
+	})
+
 	var premined [2]common.SpfUtxo
 	f.Fuzz(&premined)
 

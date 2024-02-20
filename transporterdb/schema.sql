@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS solana_transactions (
 CREATE TABLE IF NOT EXISTS premined_limits (
     address     text PRIMARY KEY,
     allowed_max bigint NOT NULL,
+    constraint  allowed_max_positive check (allowed_max > 0),
     transported bigint NOT NULL DEFAULT 0,
     blocked     boolean NOT NULL DEFAULT FALSE
 );
