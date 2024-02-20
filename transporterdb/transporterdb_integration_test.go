@@ -174,13 +174,13 @@ func TestIntegrationPremined(t *testing.T) {
 	})
 
 	t.Run("zero amount does not work", func(t *testing.T) {
-		var premined [2]common.SpfUtxo
+		var premined [2]common.SpfAddressBalance
 		f.Fuzz(&premined)
 		premined[0].Value = types.ZeroCurrency
 		require.Error(t, tdb.InsertPremined(ctx, premined[:]))
 	})
 
-	var premined [2]common.SpfUtxo
+	var premined [2]common.SpfAddressBalance
 	f.Fuzz(&premined)
 
 	t.Run("CheckAllowance before adding limits", func(t *testing.T) {
@@ -497,7 +497,7 @@ func TestIntegrationPreminedWhitelist(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, premined)
 
-	var wantPremined []common.SpfUtxo
+	var wantPremined []common.SpfAddressBalance
 	f.Fuzz(&wantPremined)
 	t.Logf("Inserting %d premined UTXOs)", len(wantPremined))
 	require.NoError(t, tdb.InsertPremined(ctx, wantPremined))
@@ -505,7 +505,7 @@ func TestIntegrationPreminedWhitelist(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, wantPremined, premined)
 
-	var newPremined []common.SpfUtxo
+	var newPremined []common.SpfAddressBalance
 	f.Fuzz(&newPremined)
 	t.Logf("Inserting %d premined UTXOs)", len(newPremined))
 	require.NoError(t, tdb.InsertPremined(ctx, newPremined))

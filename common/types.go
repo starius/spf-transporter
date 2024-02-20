@@ -61,7 +61,7 @@ func (si SupplyInfo) Equals(si2 SupplyInfo) bool {
 	return true
 }
 
-type SpfUtxo struct {
+type SpfAddressBalance struct {
 	Value      types.Currency   `json:"value"`
 	UnlockHash types.UnlockHash `json:"unlockhash"`
 }

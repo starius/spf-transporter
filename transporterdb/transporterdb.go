@@ -1206,15 +1206,15 @@ func (tdb *TransporterDB) RecordsWithUnconfirmedSolana(ctx context.Context) ([]c
 }
 
 // InsertPremined is for tests only!
-func (tdb *TransporterDB) InsertPremined(ctx context.Context, newPremined []common.SpfUtxo) error {
+func (tdb *TransporterDB) InsertPremined(ctx context.Context, newPremined []common.SpfAddressBalance) error {
 	lid := uuid.NewString()
 	log.Printf("TransporterDB: InsertPremined started (%s)\n", lid)
 	defer log.Printf("TransporterDB: InsertPremined exited (%s)\n", lid)
 	return tdb.runRetryableTransaction(ctx, func(innerCtx context.Context, tq *Queries) error {
-		for _, utxo := range newPremined {
+		for _, addressBalance := range newPremined {
 			if err := tq.InsertPremined(innerCtx, InsertPreminedParams{
-				Address:    utxo.UnlockHash.String(),
-				AllowedMax: utxo.Value.Big().Int64(),
+				Address:    addressBalance.UnlockHash.String(),
+				AllowedMax: addressBalance.Value.Big().Int64(),
 			}); err != nil {
 				return fmt.Errorf("failed to insert premined: %w", err)
 			}
