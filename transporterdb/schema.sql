@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS unconfirmed_burns (
     constraint       burn_id_len check (char_length(burn_id) = 64),
     amount           bigint NOT NULL,
     solana_address   text NOT NULL,
-    constraint       solana_address_len check (char_length(solana_address) between 32 and 44),
+    constraint       solana_address_not_empty check (solana_address <> ''),
     premined_address text REFERENCES premined_limits(address),
     constraint       premined_address_len check (char_length(premined_address) = 76),
     height           bigint,
