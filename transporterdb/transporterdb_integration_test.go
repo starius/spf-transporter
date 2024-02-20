@@ -199,11 +199,13 @@ func TestIntegrationPremined(t *testing.T) {
 		require.Empty(t, reqs)
 	})
 
+	info := &common.UnconfirmedTxInfo{}
+
 	t.Run("add unconfirmed tx using 1/3 of limit of first address", func(t *testing.T) {
-		info := &common.UnconfirmedTxInfo{}
 		f.Fuzz(info)
 		info.PreminedAddr = &premined[0].UnlockHash
 		info.Type = common.Premined
+		info.Height = nil
 
 		t.Run("zero amount does not work", func(t *testing.T) {
 			info.Amount = types.ZeroCurrency
@@ -218,21 +220,65 @@ func TestIntegrationPremined(t *testing.T) {
 	})
 
 	t.Run("get premined limit for the used address", func(t *testing.T) {
-		t.Skip("TODO(zer0main): what should it return? I guess 2/3 of original amount?")
 		addr2limit, err := tdb.FindPremined(ctx, []types.UnlockHash{premined[0].UnlockHash})
 		require.NoError(t, err)
 		require.Equal(t, map[types.UnlockHash]common.PreminedRecord{
 			premined[0].UnlockHash: common.PreminedRecord{
-				Limit: premined[0].Value,
+				Limit:       premined[0].Value,
+				Transported: info.Amount,
 			},
 		}, addr2limit)
 	})
 
 	t.Run("UncompletedPremined after adding unconfirmed tx (empty)", func(t *testing.T) {
-		t.Skip("TODO(zer0main): should the queue be empty at this point?")
 		reqs, err := tdb.UncompletedPremined(ctx)
 		require.NoError(t, err)
 		require.Empty(t, reqs)
+	})
+
+	var confirmationHeight types.BlockHeight = 1000000
+
+	t.Run("ConfirmUnconfirmed", func(t *testing.T) {
+		info.Height = &confirmationHeight
+		now := time.Now()
+		reqs, err := tdb.ConfirmUnconfirmed(ctx, []common.UnconfirmedTxInfo{*info}, now)
+		require.NoError(t, err)
+		require.Equal(t, []common.TransportRequest{{
+			SpfxInvoice: common.SpfxInvoice{
+				Address: info.SolanaAddr,
+				Amount:  info.Amount,
+				// TotalSupply is 0.
+			},
+			BurnID:   info.BurnID,
+			BurnTime: info.Time,
+			Type:     info.Type,
+		}}, reqs)
+	})
+
+	t.Run("get premined limit for the used address again", func(t *testing.T) {
+		addr2limit, err := tdb.FindPremined(ctx, []types.UnlockHash{premined[0].UnlockHash})
+		require.NoError(t, err)
+		require.Equal(t, map[types.UnlockHash]common.PreminedRecord{
+			premined[0].UnlockHash: common.PreminedRecord{
+				Limit:       premined[0].Value,
+				Transported: info.Amount,
+			},
+		}, addr2limit)
+	})
+
+	t.Run("UncompletedPremined after adding confirming tx (non-empty)", func(t *testing.T) {
+		reqs, err := tdb.UncompletedPremined(ctx)
+		require.NoError(t, err)
+		require.Equal(t, []common.TransportRequest{{
+			SpfxInvoice: common.SpfxInvoice{
+				Address: info.SolanaAddr,
+				Amount:  info.Amount,
+				// TotalSupply is 0.
+			},
+			BurnID:   info.BurnID,
+			BurnTime: info.Time,
+			Type:     info.Type,
+		}}, reqs)
 	})
 }
 
