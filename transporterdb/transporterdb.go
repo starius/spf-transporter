@@ -89,9 +89,9 @@ var dropSchemas = []struct {
 	description string
 }{
 	{dropGlobalFlagsTable, "drop global flags table"},
-	{dropUnconfirmedBurnsTable, "drop unconfirmed burns table"},
 	{dropSolanaTransactionsTable, "drop solana transactions table"},
 	{dropPreminedLimitsTable, "drop premined limits table"},
+	{dropUnconfirmedBurnsTable, "drop unconfirmed burns table"},
 	{dropPreminedTransportsTable, "drop premined transports table"},
 	{dropAirdropTransportsTable, "drop airdrop transports table"},
 	{dropQueueTransportsTable, "drop queue transports table"},
@@ -103,9 +103,9 @@ var createSchemas = []struct {
 	description string
 }{
 	{createGlobalFlagsTable, "create global flags table"},
-	{createUnconfirmedBurnsTable, "create unconfirmed burns table"},
 	{createSolanaTransactionsTable, "create solana transactions table"},
 	{createPreminedLimitsTable, "create premined limits table"},
+	{createUnconfirmedBurnsTable, "create unconfirmed burns table"},
 	{createPreminedTransportsTable, "create premined transports table"},
 	{createAirdropTransportsTable, "create airdrop transports table"},
 	{createQueueTransportsTable, "create queue transports table"},

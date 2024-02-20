@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS unconfirmed_burns (
     amount           bigint NOT NULL,
     solana_address   text NOT NULL,
     constraint       solana_address_len check (char_length(solana_address) between 32 and 44),
-    premined_address text,
+    premined_address text REFERENCES premined_limits(address),
     constraint       premined_address_len check (char_length(premined_address) = 76),
     height           bigint,
     time             timestamp,
