@@ -206,7 +206,7 @@ func TestIntegrationPremined(t *testing.T) {
 		info.Type = common.Premined
 
 		t.Run("zero amount does not work", func(t *testing.T) {
-			info.Amount = premined[0].Value.Div64(3)
+			info.Amount = types.ZeroCurrency
 			_, err := tdb.AddUnconfirmedScpTx(ctx, info)
 			require.Error(t, err)
 		})
