@@ -1135,6 +1135,7 @@ func (tdb *TransporterDB) UncompletedAirdrop(ctx context.Context) ([]common.Tran
 				},
 				BurnID:   parseTransactionID(record.BurnID),
 				BurnTime: timeFromSql(record.BurnTime),
+				Type:     common.Airdrop,
 			})
 		}
 		return nil
@@ -1170,6 +1171,7 @@ func (tdb *TransporterDB) NextInQueue(ctx context.Context, allowedSupply types.C
 				BurnID:      parseTransactionID(record.BurnID),
 				BurnTime:    timeFromSql(record.BurnTime),
 				QueueUpTime: &queueUpTime,
+				Type:        common.Regular,
 			})
 		}
 		return nil
