@@ -993,7 +993,7 @@ func (tdb *TransporterDB) transportRecord(ctx context.Context, tq *Queries, burn
 		}
 		solanaAddr, err := common.SolanaAddressFromString(rawRecord.SolanaAddress)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse solana address: %w", err)
+			return nil, fmt.Errorf("failed to parse solana address (premined) %q: %w", rawRecord.SolanaAddress, err)
 		}
 		amount := uint64(rawRecord.SupplyAfter - rawRecord.SupplyBefore.Int64)
 		solanaID = rawRecord.SolanaID.String
@@ -1014,7 +1014,7 @@ func (tdb *TransporterDB) transportRecord(ctx context.Context, tq *Queries, burn
 		}
 		solanaAddr, err := common.SolanaAddressFromString(rawRecord.SolanaAddress)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse solana address: %w", err)
+			return nil, fmt.Errorf("failed to parse solana address (airdrop) %q: %w", rawRecord.SolanaAddress, err)
 		}
 		amount := uint64(rawRecord.SupplyAfter - rawRecord.SupplyBefore.Int64)
 		solanaID = rawRecord.SolanaID.String
@@ -1089,7 +1089,7 @@ func (tdb *TransporterDB) UncompletedPremined(ctx context.Context) ([]common.Tra
 			amount := uint64(record.SupplyAfter - record.SupplyBefore.Int64)
 			solanaAddr, err := common.SolanaAddressFromString(record.SolanaAddress)
 			if err != nil {
-				return fmt.Errorf("failed to parse solana address: %w", err)
+				return fmt.Errorf("failed to parse solana address (UncompletedPremined) %q: %w", record.SolanaAddress, err)
 			}
 			res = append(res, common.TransportRequest{
 				SpfxInvoice: common.SpfxInvoice{
@@ -1123,7 +1123,7 @@ func (tdb *TransporterDB) UncompletedAirdrop(ctx context.Context) ([]common.Tran
 			amount := uint64(record.SupplyAfter - record.SupplyBefore.Int64)
 			solanaAddr, err := common.SolanaAddressFromString(record.SolanaAddress)
 			if err != nil {
-				return fmt.Errorf("failed to parse solana address: %w", err)
+				return fmt.Errorf("failed to parse solana address (UncompletedAirdrop) %q: %w", record.SolanaAddress, err)
 			}
 			res = append(res, common.TransportRequest{
 				SpfxInvoice: common.SpfxInvoice{
@@ -1157,7 +1157,7 @@ func (tdb *TransporterDB) NextInQueue(ctx context.Context, allowedSupply types.C
 			queueUpTime := timeFromSql(record.QueueUp)
 			solanaAddr, err := common.SolanaAddressFromString(record.SolanaAddress)
 			if err != nil {
-				return fmt.Errorf("failed to parse solana address: %w", err)
+				return fmt.Errorf("failed to parse solana address (NextInQueue) %q: %w", record.SolanaAddress, err)
 			}
 			res = append(res, common.TransportRequest{
 				SpfxInvoice: common.SpfxInvoice{
