@@ -1099,6 +1099,7 @@ func (tdb *TransporterDB) UncompletedPremined(ctx context.Context) ([]common.Tra
 				},
 				BurnID:   parseTransactionID(record.BurnID),
 				BurnTime: timeFromSql(record.BurnTime),
+				Type:     common.Premined,
 			})
 		}
 		return nil
