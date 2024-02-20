@@ -690,7 +690,7 @@ func unconfirmedTxInfoFromSql(inf UnconfirmedBurn) (*common.UnconfirmedTxInfo, e
 		Amount:       types.NewCurrency64(uint64(inf.Amount)),
 		SolanaAddr:   solanaAddr,
 		PreminedAddr: preminedAddr,
-		Time:         inf.Time.Time,
+		Time:         timeFromSql(inf.Time),
 		Type:         transportTypeFromSql(inf.TxType),
 	}
 	if inf.Height.Valid {
@@ -966,6 +966,7 @@ func transportRequestFromSql(qt QueueTransport) (common.TransportRequest, error)
 	if err != nil {
 		return common.TransportRequest{}, err
 	}
+	queueUpTime := timeFromSql(qt.QueueUp)
 	return common.TransportRequest{
 		SpfxInvoice: common.SpfxInvoice{
 			Address:     solanaAddr,
@@ -974,7 +975,7 @@ func transportRequestFromSql(qt QueueTransport) (common.TransportRequest, error)
 		},
 		BurnID:      parseTransactionID(qt.BurnID),
 		BurnTime:    timeFromSql(qt.BurnTime),
-		QueueUpTime: &qt.QueueUp.Time,
+		QueueUpTime: &queueUpTime,
 		Type:        common.Regular,
 	}, nil
 }
@@ -1048,10 +1049,10 @@ func (tdb *TransporterDB) transportRecord(ctx context.Context, tq *Queries, burn
 			return nil, fmt.Errorf("failed to select solana transaction: %w", err)
 		}
 		record.SolanaTxInfo = common.SolanaTxInfo{
-			BroadcastTime: solanaInfo.BroadcastTime,
+			BroadcastTime: solanaInfo.BroadcastTime.UTC(),
 			SolanaTx:      common.SolanaTxID(solanaID),
 		}
-		record.ConfirmationTime = solanaInfo.ConfirmationTime.Time
+		record.ConfirmationTime = timeFromSql(solanaInfo.ConfirmationTime)
 		record.Completed = solanaInfo.Confirmed
 	}
 	return record, nil
