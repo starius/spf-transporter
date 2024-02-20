@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS unconfirmed_burns (
 
 CREATE TABLE IF NOT EXISTS solana_transactions (
     id                text PRIMARY KEY,
+    constraint        id_not_empty check (id <> ''),
     broadcast_time    timestamp NOT NULL,
     confirmation_time timestamp,
     confirmed         boolean NOT NULL DEFAULT FALSE

@@ -415,9 +415,13 @@ func TestIntegrationPremined(t *testing.T) {
 	})
 
 	var solanaTxInfo common.SolanaTxInfo
-	f.Fuzz(&solanaTxInfo)
 
 	t.Run("AddSolanaTransaction", func(t *testing.T) {
+		t.Run("empty solana txid is not accepted", func(t *testing.T) {
+			err := tdb.AddSolanaTransaction(ctx, info.BurnID, common.Premined, solanaTxInfo)
+			require.ErrorContains(t, err, "id_not_empty")
+		})
+		f.Fuzz(&solanaTxInfo)
 		require.NoError(t, tdb.AddSolanaTransaction(ctx, info.BurnID, common.Premined, solanaTxInfo))
 	})
 
