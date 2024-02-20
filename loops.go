@@ -100,7 +100,7 @@ func (s *Server) mint(req common.TransportRequest) {
 			continue
 		}
 		if err := s.solana.SendAndConfirm(ctx, solanaTx); err != nil {
-			log.Printf("solana.SendAndConfirm failed (id %s), waiting %s (SolanaTxDecayTime) to ensure transaction is really gone...", string(solanaTxID), s.settings.SolanaTxDecayTime.String())
+			log.Printf("solana.SendAndConfirm failed: %v; (id %s), waiting %s (SolanaTxDecayTime) to ensure transaction is really gone...", err, string(solanaTxID), s.settings.SolanaTxDecayTime.String())
 			time.Sleep(s.settings.SolanaTxDecayTime)
 			status, err := s.solana.TxStatus(ctx, []common.SolanaTxID{solanaTxID})
 			if err != nil {
