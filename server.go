@@ -126,7 +126,11 @@ func (s *Server) PreminedList(ctx context.Context, req *PreminedListRequest) (*P
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch premined limits: %w", err)
 	}
-	return &PreminedListResponse{Premined: list}, nil
+	respMap := make(map[string]common.PreminedRecord, len(list))
+	for uh, r := range list {
+		respMap[uh.String()] = r
+	}
+	return &PreminedListResponse{Premined: respMap}, nil
 }
 
 func (s *Server) setQueueLocked(ctx context.Context, val bool) error {
@@ -279,9 +283,9 @@ func (s *Server) CheckAllowance(ctx context.Context, req *CheckAllowanceRequest)
 	// Airdrop.
 	airdropAllowance := AmountWithTimeEstimate{Amount: allowance.AirdropFreeCapacity, WaitEstimate: confirmationTime}
 	// Premined.
-	preminedAllowance := make(map[types.UnlockHash]AmountWithTimeEstimate)
+	preminedAllowance := make(map[string]AmountWithTimeEstimate)
 	for uh, amount := range allowance.PreminedFreeCapacity {
-		preminedAllowance[uh] = AmountWithTimeEstimate{Amount: amount, WaitEstimate: confirmationTime}
+		preminedAllowance[uh.String()] = AmountWithTimeEstimate{Amount: amount, WaitEstimate: confirmationTime}
 	}
 	// Handle queue transports.
 	queueFree := allowance.Queue.FreeCapacity

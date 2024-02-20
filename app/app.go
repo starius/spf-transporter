@@ -30,7 +30,7 @@ type Config struct {
 	DBCfgPath     string `long:"transporter-db-cfg" env:"DB_CFG_PATH" description:"Path to auth DB config"`
 
 	SolanaTxDecayTime        time.Duration `long:"solana-tx-decay-time" env:"SOLANA_TX_DECAY_TIME" default:"3m"`
-	QueueCheckInterval       time.Duration `long:"queue-check-interval" env:"QUEUE_CHECK_INTERVAL" default:"30m" `
+	QueueCheckInterval       time.Duration `long:"queue-check-interval" env:"QUEUE_CHECK_INTERVAL" default:"10m" `
 	UnconfirmedCheckInterval time.Duration `long:"unconfirmed-check-interval" env:"UNCONFIRMED_CHECK_INTERVAL" default:"10m"`
 	ScpTxConfirmationTime    time.Duration `long:"scp-tx-confirmation-time" env:"SCP_TX_CONFIRMATION_TIME" default:"1h"`
 	ScpTxConfirmations       int           `long:"scp-tx-confirmations" env:"SCP_TX_CONFIRMATIONS" default:"6"`

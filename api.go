@@ -22,7 +22,7 @@ type PreminedListRequest struct {
 }
 
 type PreminedListResponse struct {
-	Premined map[types.UnlockHash]common.PreminedRecord `json:"premined"`
+	Premined map[string]common.PreminedRecord `json:"premined"`
 }
 
 type CheckAllowanceRequest struct {
@@ -35,9 +35,9 @@ type AmountWithTimeEstimate struct {
 }
 
 type CheckAllowanceResponse struct {
-	Airdrop  AmountWithTimeEstimate                      `json:"airdrop"`
-	Premined map[types.UnlockHash]AmountWithTimeEstimate `json:"premined"`
-	Regular  AmountWithTimeEstimate                      `json:"regular"`
+	Airdrop  AmountWithTimeEstimate            `json:"airdrop"`
+	Premined map[string]AmountWithTimeEstimate `json:"premined"`
+	Regular  AmountWithTimeEstimate            `json:"regular"`
 }
 
 type SubmitScpTxRequest struct {
