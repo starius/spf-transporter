@@ -8,6 +8,7 @@ package transporterdb
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/lib/pq"
 )
@@ -111,7 +112,7 @@ WHERE address = $1
 
 type DecreasePreminedParams struct {
 	Address     string
-	Transported sql.NullInt64
+	Transported int64
 }
 
 func (q *Queries) DecreasePremined(ctx context.Context, arg DecreasePreminedParams) error {
@@ -127,7 +128,7 @@ WHERE address = $1
 
 type IncreasePreminedTransportedParams struct {
 	Address     string
-	Transported sql.NullInt64
+	Transported int64
 }
 
 func (q *Queries) IncreasePreminedTransported(ctx context.Context, arg IncreasePreminedTransportedParams) error {
@@ -164,7 +165,7 @@ INSERT INTO premined_limits (
 type InsertPreminedParams struct {
 	Address     string
 	AllowedMax  int64
-	Transported sql.NullInt64
+	Transported int64
 }
 
 func (q *Queries) InsertPremined(ctx context.Context, arg InsertPreminedParams) error {
@@ -183,7 +184,7 @@ INSERT INTO solana_transactions (
 
 type InsertSolanaTransactionParams struct {
 	ID            string
-	BroadcastTime sql.NullTime
+	BroadcastTime time.Time
 }
 
 func (q *Queries) InsertSolanaTransaction(ctx context.Context, arg InsertSolanaTransactionParams) error {

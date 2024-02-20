@@ -7,6 +7,7 @@ package transporterdb
 import (
 	"database/sql"
 	"fmt"
+	"time"
 )
 
 type TransportType string
@@ -46,7 +47,7 @@ type GlobalFlag struct {
 type PreminedLimit struct {
 	Address     string
 	AllowedMax  int64
-	Transported sql.NullInt64
+	Transported int64
 	Blocked     bool
 }
 
@@ -72,7 +73,7 @@ type QueueTransport struct {
 
 type SolanaTransaction struct {
 	ID               string
-	BroadcastTime    sql.NullTime
+	BroadcastTime    time.Time
 	ConfirmationTime sql.NullTime
 	Confirmed        bool
 }

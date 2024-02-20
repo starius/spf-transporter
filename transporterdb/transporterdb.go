@@ -307,7 +307,7 @@ func (tdb *TransporterDB) runRetryableTransaction(ctx context.Context, fn tdbMet
 func preminedLimitsFromSql(premined []PreminedLimit) (map[types.UnlockHash]common.PreminedRecord, error) {
 	records := make(map[types.UnlockHash]common.PreminedRecord)
 	for _, pr := range premined {
-		if pr.Transported.Int64 >= pr.AllowedMax {
+		if pr.Transported >= pr.AllowedMax {
 			// Skip depleted premined addresses.
 			// They should be able to spend like regular.
 			continue
@@ -318,7 +318,7 @@ func preminedLimitsFromSql(premined []PreminedLimit) (map[types.UnlockHash]commo
 		}
 		records[uh] = common.PreminedRecord{
 			Limit:       types.NewCurrency64(uint64(pr.AllowedMax)),
-			Transported: types.NewCurrency64(uint64(pr.Transported.Int64)),
+			Transported: types.NewCurrency64(uint64(pr.Transported)),
 		}
 	}
 	return records, nil
@@ -572,7 +572,7 @@ func (tdb *TransporterDB) preminedAllowance(ctx context.Context, tq *Queries, un
 		if err := uh.LoadString(pr.Address); err != nil {
 			return nil, fmt.Errorf("failed to parse premined address: %w", err)
 		}
-		transported := types.NewCurrency64(uint64(pr.Transported.Int64))
+		transported := types.NewCurrency64(uint64(pr.Transported))
 		allowedMax := types.NewCurrency64(uint64(pr.AllowedMax))
 		allowance[uh] = allowedMax.Sub(transported)
 	}
@@ -678,7 +678,7 @@ func (tdb *TransporterDB) AddUnconfirmedScpTx(ctx context.Context, info *common.
 			// Increase premined amount transported by this unlock hash.
 			if err := tq.IncreasePreminedTransported(innerCtx, IncreasePreminedTransportedParams{
 				Address:     info.PreminedAddr.String(),
-				Transported: sql.NullInt64{Valid: true, Int64: info.Amount.Big().Int64()},
+				Transported: info.Amount.Big().Int64(),
 			}); err != nil {
 				return fmt.Errorf("failed to increase transported amount: %w", err)
 			}
@@ -883,7 +883,7 @@ func (tdb *TransporterDB) RemoveUnconfirmed(ctx context.Context, txs []common.Un
 			}
 			if err := tq.DecreasePremined(innerCtx, DecreasePreminedParams{
 				Address:     tx.PreminedAddr.String(),
-				Transported: sql.NullInt64{Valid: true, Int64: tx.Amount.Big().Int64()},
+				Transported: tx.Amount.Big().Int64(),
 			}); err != nil {
 				return fmt.Errorf("failed to decrease premined: %w", err)
 			}
@@ -925,7 +925,7 @@ func (tdb *TransporterDB) AddSolanaTransaction(ctx context.Context, burnID types
 	return tdb.runRetryableTransaction(ctx, func(innerCtx context.Context, tq *Queries) error {
 		if err := tq.InsertSolanaTransaction(innerCtx, InsertSolanaTransactionParams{
 			ID:            string(info.SolanaTx),
-			BroadcastTime: sql.NullTime{Valid: true, Time: info.BroadcastTime},
+			BroadcastTime: info.BroadcastTime,
 		}); err != nil {
 			return fmt.Errorf("failed to insert solana transaction: %w", err)
 		}
@@ -1082,7 +1082,7 @@ func (tdb *TransporterDB) transportRecord(ctx context.Context, tq *Queries, burn
 			return nil, fmt.Errorf("failed to select solana transaction: %w", err)
 		}
 		record.SolanaTxInfo = common.SolanaTxInfo{
-			BroadcastTime: solanaInfo.BroadcastTime.Time,
+			BroadcastTime: solanaInfo.BroadcastTime,
 			SolanaTx:      common.SolanaTxID(solanaID),
 		}
 		record.ConfirmationTime = solanaInfo.ConfirmationTime.Time
