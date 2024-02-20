@@ -251,6 +251,11 @@ func TestIntegrationPremined(t *testing.T) {
 		require.Empty(t, reqs)
 	})
 
+	t.Run("TransportRecord before confirming tx", func(t *testing.T) {
+		_, err := tdb.TransportRecord(ctx, info.BurnID)
+		require.ErrorContains(t, err, "not exists")
+	})
+
 	var confirmationHeight types.BlockHeight = 1000000
 
 	t.Run("ConfirmUnconfirmed", func(t *testing.T) {
@@ -281,7 +286,7 @@ func TestIntegrationPremined(t *testing.T) {
 		}, addr2limit)
 	})
 
-	t.Run("UncompletedPremined after adding confirming tx (non-empty)", func(t *testing.T) {
+	t.Run("UncompletedPremined after confirming tx (non-empty)", func(t *testing.T) {
 		reqs, err := tdb.UncompletedPremined(ctx)
 		require.NoError(t, err)
 		require.Equal(t, []common.TransportRequest{{
@@ -294,6 +299,23 @@ func TestIntegrationPremined(t *testing.T) {
 			BurnTime: info.Time,
 			Type:     info.Type,
 		}}, reqs)
+	})
+
+	t.Run("TransportRecord after confirming tx", func(t *testing.T) {
+		transportRecord, err := tdb.TransportRecord(ctx, info.BurnID)
+		require.NoError(t, err)
+		require.Equal(t, &common.TransportRecord{
+			TransportRequest: common.TransportRequest{
+				SpfxInvoice: common.SpfxInvoice{
+					Address: info.SolanaAddr,
+					Amount:  info.Amount,
+					// TotalSupply is 0.
+				},
+				BurnID:   info.BurnID,
+				BurnTime: info.Time,
+				Type:     info.Type,
+			},
+		}, transportRecord)
 	})
 }
 
