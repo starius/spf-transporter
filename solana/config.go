@@ -44,7 +44,7 @@ func NewDevNetConfig(solanaKeygenFile, heliusApiKey string) minterConfig {
 		Token:             solana.MustPublicKeyFromBase58("5zxeCQmKj7SPkaLNc1dZo5fzEtdQYses1dYgcCwW7b9V"),
 		MintAuthoritySeed: "mint-authority",
 		MintingStateSeed:  "minting-state3",
-		FundATAMinAmount:  1000,
+		FundATAMinAmount:  100,
 		Decimals:          3,
 	}
 }
@@ -61,7 +61,7 @@ func NewMainNetConfig(solanaKeygenFile, heliusApiKey string) minterConfig {
 		Token:             solana.MustPublicKeyFromBase58("GyuP7chtXSRB6erApifBxFvuTtz94x3zQo3JdWofBTgy"),
 		MintAuthoritySeed: "mint-authority",
 		MintingStateSeed:  "minting-state2",
-		FundATAMinAmount:  1000,
+		FundATAMinAmount:  100,
 		Decimals:          3,
 	}
 }
