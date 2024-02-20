@@ -48,6 +48,8 @@ func NewTestTransporterDB(t *testing.T, settings *Settings) *TransporterDB {
 	return tdb
 }
 
+var airdropFreeCapacity = types.NewCurrency64(15000000)
+
 var defaultSettings = func() *Settings {
 	queueSizeLimit, err := types.NewCurrencyStr("2500000SPF")
 	if err != nil {
@@ -181,8 +183,34 @@ func TestIntegrationPremined(t *testing.T) {
 	var premined [2]common.SpfUtxo
 	f.Fuzz(&premined)
 
+	t.Run("CheckAllowance before adding limits", func(t *testing.T) {
+		_, err := tdb.CheckAllowance(ctx, []types.UnlockHash{
+			premined[0].UnlockHash,
+			premined[1].UnlockHash,
+		})
+		require.ErrorContains(t, err, "not all of provided unlock hashes are premined")
+	})
+
 	t.Run("add two addresses with premined limits", func(t *testing.T) {
 		require.NoError(t, tdb.InsertPremined(ctx, premined[:]))
+	})
+
+	t.Run("CheckAllowance after adding limits", func(t *testing.T) {
+		allowance, err := tdb.CheckAllowance(ctx, []types.UnlockHash{
+			premined[0].UnlockHash,
+			premined[1].UnlockHash,
+		})
+		require.NoError(t, err)
+		require.Equal(t, &common.Allowance{
+			AirdropFreeCapacity: airdropFreeCapacity,
+			PreminedFreeCapacity: map[types.UnlockHash]types.Currency{
+				premined[0].UnlockHash: premined[0].Value,
+				premined[1].UnlockHash: premined[1].Value,
+			},
+			Queue: common.QueueAllowance{
+				FreeCapacity: defaultSettings.PreliminaryQueueSizeLimit,
+			},
+		}, allowance)
 	})
 
 	t.Run("get premined limits - exist, but not used yet", func(t *testing.T) {
@@ -234,6 +262,30 @@ func TestIntegrationPremined(t *testing.T) {
 		require.Nil(t, queueAllowance)
 	})
 
+	t.Run("UnconfirmedInfo after AddUnconfirmedScpTx", func(t *testing.T) {
+		info2, err := tdb.UnconfirmedInfo(ctx, info.BurnID)
+		require.NoError(t, err)
+		require.Equal(t, info, info2)
+	})
+
+	t.Run("CheckAllowance after AddUnconfirmedScpTx", func(t *testing.T) {
+		allowance, err := tdb.CheckAllowance(ctx, []types.UnlockHash{
+			premined[0].UnlockHash,
+			premined[1].UnlockHash,
+		})
+		require.NoError(t, err)
+		require.Equal(t, &common.Allowance{
+			AirdropFreeCapacity: airdropFreeCapacity,
+			PreminedFreeCapacity: map[types.UnlockHash]types.Currency{
+				premined[0].UnlockHash: premined[0].Value.Sub(info.Amount),
+				premined[1].UnlockHash: premined[1].Value,
+			},
+			Queue: common.QueueAllowance{
+				FreeCapacity: defaultSettings.PreliminaryQueueSizeLimit,
+			},
+		}, allowance)
+	})
+
 	t.Run("get premined limit for the used address", func(t *testing.T) {
 		addr2limit, err := tdb.FindPremined(ctx, []types.UnlockHash{premined[0].UnlockHash})
 		require.NoError(t, err)
@@ -256,23 +308,74 @@ func TestIntegrationPremined(t *testing.T) {
 		require.ErrorContains(t, err, "not exists")
 	})
 
-	var confirmationHeight types.BlockHeight = 1000000
+	t.Run("UnconfirmedBefore before SetConfirmationHeight", func(t *testing.T) {
+		infos, err := tdb.UnconfirmedBefore(ctx, info.Time)
+		require.NoError(t, err)
+		require.Empty(t, infos)
+
+		infos, err = tdb.UnconfirmedBefore(ctx, info.Time.Add(time.Second))
+		require.NoError(t, err)
+		require.Equal(t, []common.UnconfirmedTxInfo{*info}, infos)
+	})
+
+	t.Run("SetConfirmationHeight", func(t *testing.T) {
+		var confirmationHeight types.BlockHeight = 1000000
+		require.NoError(t, tdb.SetConfirmationHeight(ctx, []types.TransactionID{info.BurnID}, confirmationHeight))
+		info.Height = &confirmationHeight
+	})
+
+	t.Run("UnconfirmedInfo after SetConfirmationHeight", func(t *testing.T) {
+		info2, err := tdb.UnconfirmedInfo(ctx, info.BurnID)
+		require.NoError(t, err)
+		require.Equal(t, info, info2)
+	})
+
+	t.Run("UnconfirmedBefore before ConfirmUnconfirmed", func(t *testing.T) {
+		infos, err := tdb.UnconfirmedBefore(ctx, info.Time.Add(time.Second))
+		require.NoError(t, err)
+		require.Equal(t, []common.UnconfirmedTxInfo{*info}, infos)
+	})
+
+	transportRequest := common.TransportRequest{
+		SpfxInvoice: common.SpfxInvoice{
+			Address: info.SolanaAddr,
+			Amount:  info.Amount,
+			// TotalSupply is 0.
+		},
+		BurnID:   info.BurnID,
+		BurnTime: info.Time,
+		Type:     info.Type,
+	}
 
 	t.Run("ConfirmUnconfirmed", func(t *testing.T) {
-		info.Height = &confirmationHeight
 		now := time.Now()
 		reqs, err := tdb.ConfirmUnconfirmed(ctx, []common.UnconfirmedTxInfo{*info}, now)
 		require.NoError(t, err)
-		require.Equal(t, []common.TransportRequest{{
-			SpfxInvoice: common.SpfxInvoice{
-				Address: info.SolanaAddr,
-				Amount:  info.Amount,
-				// TotalSupply is 0.
+		require.Equal(t, []common.TransportRequest{transportRequest}, reqs)
+	})
+
+	t.Run("UnconfirmedBefore after ConfirmUnconfirmed", func(t *testing.T) {
+		infos, err := tdb.UnconfirmedBefore(ctx, info.Time.Add(time.Second))
+		require.NoError(t, err)
+		require.Empty(t, infos)
+	})
+
+	t.Run("CheckAllowance after ConfirmUnconfirmed", func(t *testing.T) {
+		allowance, err := tdb.CheckAllowance(ctx, []types.UnlockHash{
+			premined[0].UnlockHash,
+			premined[1].UnlockHash,
+		})
+		require.NoError(t, err)
+		require.Equal(t, &common.Allowance{
+			AirdropFreeCapacity: airdropFreeCapacity,
+			PreminedFreeCapacity: map[types.UnlockHash]types.Currency{
+				premined[0].UnlockHash: premined[0].Value.Sub(info.Amount),
+				premined[1].UnlockHash: premined[1].Value,
 			},
-			BurnID:   info.BurnID,
-			BurnTime: info.Time,
-			Type:     info.Type,
-		}}, reqs)
+			Queue: common.QueueAllowance{
+				FreeCapacity: defaultSettings.PreliminaryQueueSizeLimit,
+			},
+		}, allowance)
 	})
 
 	t.Run("get premined limit for the used address again", func(t *testing.T) {
@@ -289,33 +392,74 @@ func TestIntegrationPremined(t *testing.T) {
 	t.Run("UncompletedPremined after confirming tx (non-empty)", func(t *testing.T) {
 		reqs, err := tdb.UncompletedPremined(ctx)
 		require.NoError(t, err)
-		require.Equal(t, []common.TransportRequest{{
-			SpfxInvoice: common.SpfxInvoice{
-				Address: info.SolanaAddr,
-				Amount:  info.Amount,
-				// TotalSupply is 0.
-			},
-			BurnID:   info.BurnID,
-			BurnTime: info.Time,
-			Type:     info.Type,
-		}}, reqs)
+		require.Equal(t, []common.TransportRequest{transportRequest}, reqs)
 	})
 
 	t.Run("TransportRecord after confirming tx", func(t *testing.T) {
 		transportRecord, err := tdb.TransportRecord(ctx, info.BurnID)
 		require.NoError(t, err)
 		require.Equal(t, &common.TransportRecord{
-			TransportRequest: common.TransportRequest{
-				SpfxInvoice: common.SpfxInvoice{
-					Address: info.SolanaAddr,
-					Amount:  info.Amount,
-					// TotalSupply is 0.
-				},
-				BurnID:   info.BurnID,
-				BurnTime: info.Time,
-				Type:     info.Type,
-			},
+			TransportRequest: transportRequest,
 		}, transportRecord)
+	})
+
+	t.Run("UnconfirmedInfo after confirming tx", func(t *testing.T) {
+		_, err := tdb.UnconfirmedInfo(ctx, info.BurnID)
+		require.ErrorContains(t, err, "not exists")
+	})
+
+	t.Run("RecordsWithUnconfirmedSolana before solana broadcast", func(t *testing.T) {
+		records, err := tdb.RecordsWithUnconfirmedSolana(ctx)
+		require.NoError(t, err)
+		require.Empty(t, records)
+	})
+
+	var solanaTxInfo common.SolanaTxInfo
+	f.Fuzz(&solanaTxInfo)
+
+	t.Run("AddSolanaTransaction", func(t *testing.T) {
+		require.NoError(t, tdb.AddSolanaTransaction(ctx, info.BurnID, common.Premined, solanaTxInfo))
+	})
+
+	t.Run("TransportRecord after solana broadcast", func(t *testing.T) {
+		transportRecord, err := tdb.TransportRecord(ctx, info.BurnID)
+		require.NoError(t, err)
+		require.Equal(t, &common.TransportRecord{
+			TransportRequest: transportRequest,
+			SolanaTxInfo:     solanaTxInfo,
+		}, transportRecord)
+	})
+
+	t.Run("RecordsWithUnconfirmedSolana after solana broadcast", func(t *testing.T) {
+		records, err := tdb.RecordsWithUnconfirmedSolana(ctx)
+		require.NoError(t, err)
+		require.Equal(t, []common.TransportRecord{{
+			TransportRequest: transportRequest,
+			SolanaTxInfo:     solanaTxInfo,
+		}}, records)
+	})
+
+	solanaConfirm := solanaTxInfo.BroadcastTime.Add(time.Minute)
+
+	t.Run("ConfirmSolana", func(t *testing.T) {
+		require.NoError(t, tdb.ConfirmSolana(ctx, solanaTxInfo.SolanaTx, solanaConfirm))
+	})
+
+	t.Run("TransportRecord after solana confirmation", func(t *testing.T) {
+		transportRecord, err := tdb.TransportRecord(ctx, info.BurnID)
+		require.NoError(t, err)
+		require.Equal(t, &common.TransportRecord{
+			TransportRequest: transportRequest,
+			SolanaTxInfo:     solanaTxInfo,
+			ConfirmationTime: solanaConfirm,
+			Completed:        true,
+		}, transportRecord)
+	})
+
+	t.Run("RecordsWithUnconfirmedSolana after solana confirmation", func(t *testing.T) {
+		records, err := tdb.RecordsWithUnconfirmedSolana(ctx)
+		require.NoError(t, err)
+		require.Empty(t, records)
 	})
 }
 
