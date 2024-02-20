@@ -1087,7 +1087,7 @@ func (tdb *TransporterDB) UncompletedPremined(ctx context.Context) ([]common.Tra
 		}
 		for _, record := range uncompleted {
 			amount := uint64(record.SupplyAfter - record.SupplyBefore.Int64)
-			solanaAddr, err := common.SolanaAddressFromString(record.Address)
+			solanaAddr, err := common.SolanaAddressFromString(record.SolanaAddress)
 			if err != nil {
 				return fmt.Errorf("failed to parse solana address: %w", err)
 			}
