@@ -4,15 +4,7 @@ import (
 	"time"
 
 	"gitlab.com/scpcorp/ScPrime/types"
-)
-
-// TODO: confirm all the constants before release!
-var (
-	TransporterStart = time.Date(2024, time.January, 29, 0, 0, 0, 0, time.UTC)
-	EmissionStart    = time.Date(2024, time.February, 22, 0, 0, 0, 0, time.UTC)
-	StartSupply      = types.NewCurrency64(45000000)
-	SpfPerMinute     = types.NewCurrency64(60)
-	MaxSupply        = types.NewCurrency64(200000000)
+	"gitlab.com/scpcorp/spf-transporter/common"
 )
 
 type EmissionRules struct {
@@ -25,33 +17,28 @@ func New() *EmissionRules {
 
 func (r *EmissionRules) AllowedSupply() types.Currency {
 	now := r.timeNow().UTC()
-	if now.Before(EmissionStart) {
-		return StartSupply
+	if now.Before(common.EmissionStart) {
+		return types.ZeroCurrency
 	}
-	minutesPassed := int64(now.Sub(EmissionStart) / time.Minute) // Always round down.
-	emission := StartSupply.Add(SpfPerMinute.Mul64(uint64(minutesPassed)))
-	if emission.Cmp(MaxSupply) > 0 {
-		return MaxSupply
+	minutesPassed := int64(now.Sub(common.EmissionStart) / time.Minute) // Always round down.
+	emission := common.SpfPerMinute.Mul64(uint64(minutesPassed))
+	if emission.Cmp(common.TotalSupply) > 0 {
+		return common.TotalSupply
 	}
 	return emission
 }
 
-func divCurrencyRoundUp(c, divBy types.Currency) types.Currency {
-	return c.Add(divBy.Sub64(1)).Div(divBy)
+func (r *EmissionRules) SupplyTime(supply types.Currency) (time.Time, bool) {
+	if supply.Cmp(common.TotalSupply) > 0 {
+		return time.Time{}, false
+	}
+	minutes := common.DivCurrencyRoundUp(supply, common.SpfPerMinute).Big().Int64()
+	return common.EmissionStart.Add(time.Minute * time.Duration(minutes)), true
 }
 
-func (r *EmissionRules) SupplyTime(supply types.Currency) (time.Time, bool) {
-	if supply.Cmp(MaxSupply) > 0 {
-		return time.Time{}, false
-	}
-	if supply.Cmp(StartSupply) <= 0 {
-		return TransporterStart, true
-	}
-	minutes, err := divCurrencyRoundUp(supply.Sub(StartSupply), SpfPerMinute).Uint64()
-	if err != nil {
-		return time.Time{}, false
-	}
-	return EmissionStart.Add(time.Minute * time.Duration(int64(minutes))), true
+func (r *EmissionRules) EmissionTime(supplyChange types.Currency) time.Duration {
+	minutes := common.DivCurrencyRoundUp(supplyChange, common.SpfPerMinute).Big().Int64()
+	return time.Minute * time.Duration(minutes)
 }
 
 func (r *EmissionRules) TimeTillSupply(supply types.Currency) (time.Duration, bool) {

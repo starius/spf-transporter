@@ -11,6 +11,8 @@ import (
 	"strconv"
 
 	"github.com/gagliardetto/solana-go"
+	"gitlab.com/scpcorp/ScPrime/types"
+	"gitlab.com/scpcorp/spf-transporter/common"
 	solanatoken "gitlab.com/scpcorp/spf-transporter/solana"
 )
 
@@ -24,13 +26,13 @@ const (
 
 type minter interface {
 	InitializeAirdropTx(ctx context.Context, maxSupply int) (solana.Signature, *solana.Transaction, error)
-	CheckWallet(ctx context.Context, walletAddr solana.PublicKey, amount uint64, skipWalletAccountCheck bool) error
+	CheckAddress(ctx context.Context, walletAddr common.SolanaAddress, amount types.Currency, skipWalletAccountCheck bool) error
 	MintInitialTrancheTx(ctx context.Context, walletAddr solana.PublicKey, amount, minterSupply uint64) (solana.Signature, *solana.Transaction, error)
 	MintEmissionTx(ctx context.Context, walletAddr solana.PublicKey, amount, minterSupply uint64) (solana.Signature, *solana.Transaction, error)
 	//MintAirdropTx(ctx context.Context, walletAddr solana.PublicKey, amount, minterSupply uint64) (solana.Signature, *solana.Transaction, error)
 	SendAndConfirm(ctx context.Context, tx *solana.Transaction) error
-	SupplyInfo(ctx context.Context) (solanatoken.SupplyInfo, error)
-	TxStatus(ctx context.Context, sig solana.Signature) (solanatoken.Status, error)
+	SupplyInfo(ctx context.Context) (common.SupplyInfo, error)
+	TxStatus(ctx context.Context, ids []common.SolanaTxID) ([]common.SolanaTxStatus, error)
 }
 
 func usage() {

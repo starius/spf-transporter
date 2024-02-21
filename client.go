@@ -33,8 +33,26 @@ func (c *Client) Close() error {
 	return c.api2client.Close()
 }
 
-func (c *Client) CheckUtxoApproval(ctx context.Context, req *CheckUtxoApprovalRequest) (res *CheckUtxoApprovalResponse, err error) {
-	res = &CheckUtxoApprovalResponse{}
+func (c *Client) PreminedList(ctx context.Context, req *PreminedListRequest) (res *PreminedListResponse, err error) {
+	res = &PreminedListResponse{}
+	err = c.api2client.Call(ctx, res, req)
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
+func (c *Client) CheckSolanaAddress(ctx context.Context, req *CheckSolanaAddressRequest) (res *CheckSolanaAddressResponse, err error) {
+	res = &CheckSolanaAddressResponse{}
+	err = c.api2client.Call(ctx, res, req)
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
+func (c *Client) CheckAllowance(ctx context.Context, req *CheckAllowanceRequest) (res *CheckAllowanceResponse, err error) {
+	res = &CheckAllowanceResponse{}
 	err = c.api2client.Call(ctx, res, req)
 	if err != nil {
 		return nil, err

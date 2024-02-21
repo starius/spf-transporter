@@ -10,6 +10,8 @@ import (
 	"github.com/gagliardetto/solana-go/programs/token"
 	"github.com/gagliardetto/solana-go/rpc"
 	"github.com/gagliardetto/solana-go/rpc/ws"
+	"gitlab.com/scpcorp/ScPrime/types"
+	"gitlab.com/scpcorp/spf-transporter/common"
 )
 
 type minter struct {
@@ -75,12 +77,7 @@ func (m *minter) InitializeAirdropTx(ctx context.Context, maxSupply int) (solana
 	return m.signTx(ctx, instruction)
 }
 
-// CheckWallet checks that provided wallet address is legit.
-// Technically wallet account is not required to exist in order to receive
-// tokens to an Associated Token Account, hence skipWalletAccountCheck flag.
-// Note, that MintInitialTrancheTx and MintEmissionTx methods call this method
-// with flag set to true.
-func (m *minter) CheckWallet(ctx context.Context, walletAddr solana.PublicKey, amount uint64, skipWalletAccountCheck bool) error {
+func (m *minter) checkAddress(ctx context.Context, walletAddr solana.PublicKey, amount uint64, skipWalletAccountCheck bool) error {
 	if !skipWalletAccountCheck {
 		walletAccount, err := m.rpc.GetAccountInfo(ctx, walletAddr)
 		if err != nil {
@@ -122,6 +119,55 @@ func (m *minter) CheckWallet(ctx context.Context, walletAddr solana.PublicKey, a
 	return nil
 }
 
+// CheckAddress checks that provided wallet address is legit.
+// Technically wallet account is not required to exist in order to receive
+// tokens to an Associated Token Account, hence skipWalletAccountCheck flag.
+// Note, that MintInitialTrancheTx and MintEmissionTx methods call this method
+// with flag set to true.
+func (m *minter) CheckAddress(ctx context.Context, solanaAddr common.SolanaAddress, spfAmount types.Currency, skipWalletAccountCheck bool) error {
+	var walletAddr solana.PublicKey
+	copy(walletAddr[:], solanaAddr[:])
+	amount, err := spfAmount.Uint64()
+	if err != nil {
+		return fmt.Errorf("failed to convert amount to uint64: %w", err)
+	}
+	return m.checkAddress(ctx, walletAddr, amount, skipWalletAccountCheck)
+}
+
+func (m *minter) BuildTransaction(ctx context.Context, t common.TransportType, invoices []common.SpfxInvoice) (sid common.SolanaTxID, tx *solana.Transaction, err error) {
+	var sig solana.Signature
+	if len(invoices) != 1 {
+		err = fmt.Errorf("only 1 invoice is supported, got %d", len(invoices))
+		return
+	}
+	inv := invoices[0]
+	var walletAddr solana.PublicKey
+	copy(walletAddr[:], inv.Address[:])
+	minterSupply, err := inv.TotalSupply.Uint64()
+	if err != nil {
+		err = fmt.Errorf("failed to convert minter supply to uint64: %w", err)
+		return
+	}
+	amount, err := inv.Amount.Uint64()
+	if err != nil {
+		err = fmt.Errorf("failed to convert amount to uint64: %w", err)
+		return
+	}
+	switch t {
+	case common.Regular:
+		sig, tx, err = m.MintEmissionTx(ctx, walletAddr, amount, minterSupply)
+	case common.Premined:
+		sig, tx, err = m.MintInitialTrancheTx(ctx, walletAddr, amount, minterSupply)
+	case common.Airdrop:
+		sig, tx, err = m.MintAirdropTx(ctx, walletAddr, amount, minterSupply)
+	}
+	if err != nil {
+		return
+	}
+	sid = common.SolanaTxID(sig.String())
+	return
+}
+
 func (m *minter) MintInitialTrancheTx(ctx context.Context, walletAddr solana.PublicKey, amount, minterSupply uint64) (solana.Signature, *solana.Transaction, error) {
 	return m.mintTx(ctx, instructionNumMintInitialTranche, walletAddr, amount, minterSupply)
 }
@@ -161,7 +207,7 @@ func (m *minter) mintTx(ctx context.Context, instructionNum byte, walletAddr sol
 		panic("bad instructionNum")
 	}
 
-	err := m.CheckWallet(ctx, walletAddr, amount, true)
+	err := m.checkAddress(ctx, walletAddr, amount, true)
 	if err != nil {
 		return solana.Signature{}, nil, err
 	}
@@ -337,29 +383,27 @@ type mintingState struct {
 }
 
 // SupplyInfo returns supply numbers.
-func (m *minter) SupplyInfo(ctx context.Context) (SupplyInfo, error) {
+func (m *minter) SupplyInfo(ctx context.Context) (common.SupplyInfo, error) {
 	var mint token.Mint
 	err := m.rpc.GetAccountDataInto(ctx, m.Token, &mint)
 	if err != nil {
-		return SupplyInfo{}, fmt.Errorf("cannot get token mint account: %w", err)
+		return common.SupplyInfo{}, fmt.Errorf("cannot get token mint account: %w", err)
 	}
 
 	mintingStateAddr, err := m.mintingStateAddr()
 	if err != nil {
-		return SupplyInfo{}, err
+		return common.SupplyInfo{}, err
 	}
 	var em mintingState
 	err = m.rpc.GetAccountDataInto(ctx, mintingStateAddr, &em)
 	if err != nil && err != rpc.ErrNotFound {
-		return SupplyInfo{}, fmt.Errorf("cannot get minting state account: %w", err)
+		return common.SupplyInfo{}, fmt.Errorf("cannot get minting state account: %w", err)
 	}
 
-	return SupplyInfo{
-		TotalSupply:          mint.Supply / m.decimalization,
-		InitialTrancheSupply: em.RawInitialTrancheSupply / m.decimalization,
-		AirdropSupply:        em.RawAirdropSupply / m.decimalization,
-		EmissionSupply:       em.RawEmissionSupply / m.decimalization,
-		AirdropMaxSupply:     em.RawAirdropMaxSupply / m.decimalization,
+	return common.SupplyInfo{
+		Premined: types.NewCurrency64(em.RawInitialTrancheSupply / m.decimalization),
+		Airdrop:  types.NewCurrency64(em.RawAirdropSupply / m.decimalization),
+		Regular:  types.NewCurrency64(em.RawEmissionSupply / m.decimalization),
 	}, nil
 }
 
@@ -369,54 +413,70 @@ type Status struct {
 	ConfirmationTime time.Time
 }
 
-func (m *minter) TxStatus(ctx context.Context, sig solana.Signature) (Status, error) {
+func (m *minter) txStatus(ctx context.Context, id common.SolanaTxID) (*common.SolanaTxStatus, error) {
+	sig, err := solana.SignatureFromBase58(string(id))
+	if err != nil {
+		return nil, err
+	}
 	res, err := m.rpc.GetTransaction(ctx, sig, &rpc.GetTransactionOpts{
 		Commitment: rpc.CommitmentFinalized,
 	})
 	if err != nil {
 		if errors.Is(err, rpc.ErrNotFound) {
-			return Status{
+			return &common.SolanaTxStatus{
 				Confirmed:      false,
 				MintSuccessful: false,
 			}, nil
 		}
-		return Status{}, err
+		return nil, err
 	}
 
 	// Check Program ID.
 	tx, err := res.Transaction.GetTransaction()
 	if err != nil {
-		return Status{}, fmt.Errorf("cannot get transaction: %w", err)
+		return nil, fmt.Errorf("cannot get transaction: %w", err)
 	}
 	if len(tx.Message.Instructions) != 1 {
-		return Status{}, nil
+		return &common.SolanaTxStatus{}, nil
 	}
 	programID, err := tx.ResolveProgramIDIndex(tx.Message.Instructions[0].ProgramIDIndex)
 	if err != nil {
-		return Status{}, fmt.Errorf("cannot resolve program ID: %w", err)
+		return nil, fmt.Errorf("cannot resolve program ID: %w", err)
 	}
 	if !programID.Equals(m.MinterProgram) {
-		return Status{}, nil
+		return &common.SolanaTxStatus{}, nil
 	}
 
 	// Check that transaction executed successfully.
 	if res.Meta == nil {
-		return Status{}, fmt.Errorf("nil meta")
+		return nil, fmt.Errorf("nil meta")
 	}
 	if res.Meta.Err != nil {
-		return Status{
+		return &common.SolanaTxStatus{
 			Confirmed:      true,
 			MintSuccessful: false,
 		}, nil
 	}
 	if res.BlockTime == nil {
-		return Status{}, fmt.Errorf("nil block time")
+		return nil, fmt.Errorf("nil block time")
 	}
-	return Status{
+	return &common.SolanaTxStatus{
 		Confirmed:        true,
 		MintSuccessful:   true,
 		ConfirmationTime: res.BlockTime.Time(),
 	}, nil
+}
+
+func (m *minter) TxStatus(ctx context.Context, ids []common.SolanaTxID) ([]common.SolanaTxStatus, error) {
+	txsStatus := make([]common.SolanaTxStatus, 0, len(ids))
+	for _, id := range ids {
+		s, err := m.txStatus(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		txsStatus = append(txsStatus, *s)
+	}
+	return txsStatus, nil
 }
 
 func (m *minter) signTx(ctx context.Context, instruction solana.Instruction) (solana.Signature, *solana.Transaction, error) {

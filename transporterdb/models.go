@@ -6,31 +6,84 @@ package transporterdb
 
 import (
 	"database/sql"
+	"fmt"
+	"time"
 )
 
-type EmissionHistory struct {
-	ID            int64
-	AllowedSupply sql.NullInt64
-	UpdateTime    sql.NullTime
-	Tvl           sql.NullInt64
+type TransportType string
+
+const (
+	TransportTypeAirdrop  TransportType = "airdrop"
+	TransportTypePremined TransportType = "premined"
+	TransportTypeRegular  TransportType = "regular"
+)
+
+func (e *TransportType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TransportType(s)
+	case string:
+		*e = TransportType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TransportType: %T", src)
+	}
+	return nil
 }
 
-type PreminedWhitelist struct {
-	ID      int64
-	Address string
-	Amount  int64
+type AirdropTransport struct {
+	BurnID        string
+	SolanaAddress string
+	SupplyAfter   int64
+	SupplyBefore  sql.NullInt64
+	BurnTime      sql.NullTime
+	SolanaID      sql.NullString
 }
 
-type TransportRecord struct {
+type GlobalFlag struct {
+	Name  string
+	Value sql.NullBool
+}
+
+type PreminedLimit struct {
+	Address     string
+	AllowedMax  int64
+	Transported int64
+	Blocked     bool
+}
+
+type PreminedTransport struct {
+	BurnID        string
+	Address       string
+	SupplyAfter   int64
+	SupplyBefore  sql.NullInt64
+	BurnTime      sql.NullTime
+	SolanaAddress string
+	SolanaID      sql.NullString
+}
+
+type QueueTransport struct {
+	BurnID        string
+	SolanaAddress string
+	SupplyAfter   int64
+	SupplyBefore  sql.NullInt64
+	BurnTime      sql.NullTime
+	QueueUp       sql.NullTime
+	SolanaID      sql.NullString
+}
+
+type SolanaTransaction struct {
+	ID               string
+	BroadcastTime    time.Time
+	ConfirmationTime sql.NullTime
+	Confirmed        bool
+}
+
+type UnconfirmedBurn struct {
 	BurnID          string
-	Address         string
 	Amount          int64
-	TotalSupply     sql.NullInt64
-	BurnTime        sql.NullTime
-	QueueUp         sql.NullTime
-	InvoiceTime     sql.NullTime
-	SolanaTxTime    sql.NullTime
-	SolanaTxID      sql.NullString
-	SolanaConfirmed bool
-	Completed       bool
+	SolanaAddress   string
+	PreminedAddress sql.NullString
+	Height          sql.NullInt64
+	Time            sql.NullTime
+	TxType          TransportType
 }
