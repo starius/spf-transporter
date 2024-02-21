@@ -36,7 +36,7 @@ type CheckSolanaAddressResponse struct {
 }
 
 type CheckAllowanceRequest struct {
-	PreminedUnlockHashes *[]types.UnlockHash `json:"premined_unlock_hashes,omitempty"`
+	PreminedUnlockHashes []types.UnlockHash `json:"premined_unlock_hashes"`
 }
 
 type AmountWithTimeEstimate struct {

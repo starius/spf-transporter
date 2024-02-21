@@ -278,11 +278,7 @@ func (s *Server) CheckSolanaAddress(ctx context.Context, req *CheckSolanaAddress
 }
 
 func (s *Server) CheckAllowance(ctx context.Context, req *CheckAllowanceRequest) (*CheckAllowanceResponse, error) {
-	var preminedAddrs []types.UnlockHash
-	if req.PreminedUnlockHashes != nil {
-		preminedAddrs = *req.PreminedUnlockHashes
-	}
-	allowance, err := s.storage.CheckAllowance(ctx, preminedAddrs)
+	allowance, err := s.storage.CheckAllowance(ctx, req.PreminedUnlockHashes)
 	if err != nil {
 		return nil, err
 	}
