@@ -75,6 +75,12 @@ type Settings struct {
 	QueueMode      common.QueueHandlingMode
 }
 
+func (s *Settings) ConfirmationTime() time.Duration {
+	constPart := s.ScpTxConfirmationTime
+	blocksTime := time.Duration(types.BlockFrequency) * time.Second * time.Duration(s.ScpTxConfirmations)
+	return constPart + blocksTime
+}
+
 type Server struct {
 	emission      EmissionRules
 	scpBlockchain ScpBlockchain
@@ -282,7 +288,7 @@ func (s *Server) CheckAllowance(ctx context.Context, req *CheckAllowanceRequest)
 	if err != nil {
 		return nil, err
 	}
-	confirmationTime := s.settings.ScpTxConfirmationTime
+	confirmationTime := s.settings.ConfirmationTime()
 	// Airdrop.
 	airdropAllowance := AmountWithTimeEstimate{Amount: allowance.AirdropFreeCapacity, WaitEstimate: confirmationTime}
 	// Premined.
@@ -376,7 +382,7 @@ func (s *Server) SubmitScpTx(ctx context.Context, req *SubmitScpTxRequest) (*Sub
 	if err != nil {
 		return nil, err
 	}
-	confirmationTime := s.settings.ScpTxConfirmationTime
+	confirmationTime := s.settings.ConfirmationTime()
 	if *txType != common.Regular {
 		return &SubmitScpTxResponse{WaitTimeEstimate: confirmationTime}, nil
 	}
