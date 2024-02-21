@@ -42,6 +42,7 @@ func NewTestTransporterDB(t *testing.T, settings *Settings) *TransporterDB {
 
 	t.Cleanup(func() {
 		require.NoError(t, tdb.DropSchemas(true))
+		tdb.Close()
 		require.NoError(t, db.Close())
 	})
 
