@@ -124,7 +124,10 @@ func TestIntegrationRunRetryableTransaction(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(len(infos))
-	now := time.Now()
+
+	// Round, because postgres stores with microsecond precision.
+	now := time.Now().UTC().Round(time.Microsecond)
+
 	for _, info := range infos {
 		info := info
 		go func() {
@@ -221,6 +224,162 @@ func TestIntegrationRegular(t *testing.T) {
 				QueueSize:    types.NewCurrency64(100),
 			},
 		}, allowance)
+	})
+
+	t.Run("UnconfirmedInfo after AddUnconfirmedScpTx", func(t *testing.T) {
+		info2, err := tdb.UnconfirmedInfo(ctx, info.BurnID)
+		require.NoError(t, err)
+		require.Equal(t, info, info2)
+	})
+
+	t.Run("TransportRecord before confirming tx", func(t *testing.T) {
+		_, err := tdb.TransportRecord(ctx, info.BurnID)
+		require.ErrorContains(t, err, "not exists")
+	})
+
+	t.Run("UnconfirmedBefore before SetConfirmationHeight", func(t *testing.T) {
+		infos, err := tdb.UnconfirmedBefore(ctx, info.Time)
+		require.NoError(t, err)
+		require.Empty(t, infos)
+
+		infos, err = tdb.UnconfirmedBefore(ctx, info.Time.Add(time.Second))
+		require.NoError(t, err)
+		require.Equal(t, []common.UnconfirmedTxInfo{*info}, infos)
+	})
+
+	t.Run("SetConfirmationHeight", func(t *testing.T) {
+		var confirmationHeight types.BlockHeight = 1000000
+		require.NoError(t, tdb.SetConfirmationHeight(ctx, []types.TransactionID{info.BurnID}, confirmationHeight))
+		info.Height = &confirmationHeight
+	})
+
+	t.Run("UnconfirmedInfo after SetConfirmationHeight", func(t *testing.T) {
+		info2, err := tdb.UnconfirmedInfo(ctx, info.BurnID)
+		require.NoError(t, err)
+		require.Equal(t, info, info2)
+	})
+
+	t.Run("UnconfirmedBefore before ConfirmUnconfirmed", func(t *testing.T) {
+		infos, err := tdb.UnconfirmedBefore(ctx, info.Time.Add(time.Second))
+		require.NoError(t, err)
+		require.Equal(t, []common.UnconfirmedTxInfo{*info}, infos)
+	})
+
+	transportRequest := common.TransportRequest{
+		SpfxInvoice: common.SpfxInvoice{
+			Address: info.SolanaAddr,
+			Amount:  info.Amount,
+			// TotalSupply is 0.
+		},
+		BurnID:   info.BurnID,
+		BurnTime: info.Time,
+		Type:     info.Type,
+	}
+
+	t.Run("ConfirmUnconfirmed", func(t *testing.T) {
+		// Round, because postgres stores with microsecond precision.
+		now := time.Now().UTC().Round(time.Microsecond)
+
+		reqs, err := tdb.ConfirmUnconfirmed(ctx, []common.UnconfirmedTxInfo{*info}, now)
+		require.NoError(t, err)
+		require.Equal(t, []common.TransportRequest{transportRequest}, reqs)
+
+		transportRequest.QueueUpTime = &now
+	})
+
+	t.Run("UnconfirmedBefore after ConfirmUnconfirmed", func(t *testing.T) {
+		infos, err := tdb.UnconfirmedBefore(ctx, info.Time.Add(time.Second))
+		require.NoError(t, err)
+		require.Empty(t, infos)
+	})
+
+	t.Run("CheckAllowance after ConfirmUnconfirmed", func(t *testing.T) {
+		allowance, err := tdb.CheckAllowance(ctx, []types.UnlockHash{})
+		require.NoError(t, err)
+		require.Equal(t, &common.Allowance{
+			AirdropFreeCapacity: airdropFreeCapacity,
+			Queue: common.QueueAllowance{
+				FreeCapacity: defaultSettings.PreliminaryQueueSizeLimit.Sub64(100),
+				QueueSize:    types.NewCurrency64(100),
+			},
+		}, allowance)
+	})
+
+	t.Run("TransportRecord after confirming tx", func(t *testing.T) {
+		transportRecord, err := tdb.TransportRecord(ctx, info.BurnID)
+		require.NoError(t, err)
+		require.Equal(t, &common.TransportRecord{
+			TransportRequest: transportRequest,
+		}, transportRecord)
+	})
+
+	t.Run("UnconfirmedInfo after confirming tx", func(t *testing.T) {
+		_, err := tdb.UnconfirmedInfo(ctx, info.BurnID)
+		require.ErrorContains(t, err, "not exists")
+	})
+
+	t.Run("RecordsWithUnconfirmedSolana before solana broadcast", func(t *testing.T) {
+		records, err := tdb.RecordsWithUnconfirmedSolana(ctx)
+		require.NoError(t, err)
+		require.Empty(t, records)
+	})
+
+	var solanaTxInfo common.SolanaTxInfo
+
+	t.Run("AddSolanaTransaction", func(t *testing.T) {
+		for solanaTxInfo.SolanaTx == "" || solanaTxInfo.BroadcastTime == (time.Time{}) {
+			f.Fuzz(&solanaTxInfo)
+		}
+		require.NoError(t, tdb.AddSolanaTransaction(ctx, info.BurnID, common.Regular, solanaTxInfo))
+	})
+
+	t.Run("TransportRecord after solana broadcast", func(t *testing.T) {
+		transportRecord, err := tdb.TransportRecord(ctx, info.BurnID)
+		require.NoError(t, err)
+		require.Equal(t, &common.TransportRecord{
+			TransportRequest: transportRequest,
+			SolanaTxInfo:     solanaTxInfo,
+		}, transportRecord)
+	})
+
+	t.Run("RecordsWithUnconfirmedSolana after solana broadcast", func(t *testing.T) {
+		records, err := tdb.RecordsWithUnconfirmedSolana(ctx)
+		require.NoError(t, err)
+		require.Equal(t, []common.TransportRecord{{
+			TransportRequest: transportRequest,
+			SolanaTxInfo:     solanaTxInfo,
+		}}, records)
+	})
+
+	solanaConfirm := solanaTxInfo.BroadcastTime.Add(time.Minute)
+
+	t.Run("ConfirmSolana", func(t *testing.T) {
+		require.NoError(t, tdb.ConfirmSolana(ctx, solanaTxInfo.SolanaTx, solanaConfirm))
+	})
+
+	t.Run("TransportRecord after solana confirmation", func(t *testing.T) {
+		transportRecord, err := tdb.TransportRecord(ctx, info.BurnID)
+		require.NoError(t, err)
+		require.Equal(t, &common.TransportRecord{
+			TransportRequest: transportRequest,
+			SolanaTxInfo:     solanaTxInfo,
+			ConfirmationTime: solanaConfirm,
+			Completed:        true,
+		}, transportRecord)
+	})
+
+	t.Run("RecordsWithUnconfirmedSolana after solana confirmation", func(t *testing.T) {
+		records, err := tdb.RecordsWithUnconfirmedSolana(ctx)
+		require.NoError(t, err)
+		require.Empty(t, records)
+	})
+
+	t.Run("ConfirmedSupply", func(t *testing.T) {
+		supplyInfo, err := tdb.ConfirmedSupply(ctx)
+		require.NoError(t, err)
+		require.Equal(t, common.SupplyInfo{
+			Regular: info.Amount,
+		}, supplyInfo)
 	})
 }
 
@@ -442,7 +601,9 @@ func TestIntegrationPremined(t *testing.T) {
 	}
 
 	t.Run("ConfirmUnconfirmed", func(t *testing.T) {
-		now := time.Now()
+		// Round, because postgres stores with microsecond precision.
+		now := time.Now().UTC().Round(time.Microsecond)
+
 		reqs, err := tdb.ConfirmUnconfirmed(ctx, []common.UnconfirmedTxInfo{*info}, now)
 		require.NoError(t, err)
 		require.Equal(t, []common.TransportRequest{transportRequest}, reqs)
@@ -572,7 +733,9 @@ func TestIntegrationPremined(t *testing.T) {
 	}
 
 	t.Run("ConfirmUnconfirmed second tx", func(t *testing.T) {
-		now := time.Now()
+		// Round, because postgres stores with microsecond precision.
+		now := time.Now().UTC().Round(time.Microsecond)
+
 		reqs, err := tdb.ConfirmUnconfirmed(ctx, []common.UnconfirmedTxInfo{*info2}, now)
 		require.NoError(t, err)
 		require.Equal(t, []common.TransportRequest{transportRequest2}, reqs)
