@@ -42,6 +42,15 @@ func (c *Client) PreminedList(ctx context.Context, req *PreminedListRequest) (re
 	return
 }
 
+func (c *Client) CheckSolanaAddress(ctx context.Context, req *CheckSolanaAddressRequest) (res *CheckSolanaAddressResponse, err error) {
+	res = &CheckSolanaAddressResponse{}
+	err = c.api2client.Call(ctx, res, req)
+	if err != nil {
+		return nil, err
+	}
+	return
+}
+
 func (c *Client) CheckAllowance(ctx context.Context, req *CheckAllowanceRequest) (res *CheckAllowanceResponse, err error) {
 	res = &CheckAllowanceResponse{}
 	err = c.api2client.Call(ctx, res, req)

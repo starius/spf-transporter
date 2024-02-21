@@ -270,6 +270,13 @@ func (s *Server) checkUnlockHashes(ctx context.Context, unlockHashes []types.Unl
 	return &txType, nil
 }
 
+func (s *Server) CheckSolanaAddress(ctx context.Context, req *CheckSolanaAddressRequest) (*CheckSolanaAddressResponse, error) {
+	if err := s.solana.CheckAddress(ctx, req.SolanaAddress, req.Amount, false); err != nil {
+		return nil, fmt.Errorf("Solana address check failed: %w", err)
+	}
+	return &CheckSolanaAddressResponse{CurrentTime: s.now()}, nil
+}
+
 func (s *Server) CheckAllowance(ctx context.Context, req *CheckAllowanceRequest) (*CheckAllowanceResponse, error) {
 	var preminedAddrs []types.UnlockHash
 	if req.PreminedUnlockHashes != nil {
@@ -338,7 +345,7 @@ func (s *Server) SubmitScpTx(ctx context.Context, req *SubmitScpTxRequest) (*Sub
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract solana address from arbitrary data: %w", err)
 	}
-	if err := s.solana.CheckAddress(ctx, solanaAddr, burntAmount, false); err != nil {
+	if err := s.solana.CheckAddress(ctx, solanaAddr, burntAmount, true); err != nil {
 		return nil, fmt.Errorf("solana address (%s) verification failed: %w", solanaAddr, err)
 	}
 	unlockHashes := common.ExtractSiafundUnlockHashes(&req.Transaction)

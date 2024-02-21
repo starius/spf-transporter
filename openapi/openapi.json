@@ -10,6 +10,15 @@
      }
     }
    },
+   "transporter.CheckSolanaAddressRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/transporter.CheckSolanaAddressRequest"
+      }
+     }
+    }
+   },
    "transporter.HistoryRequest": {
     "content": {
      "application/json": {
@@ -196,6 +205,29 @@
      },
      "regular": {
       "$ref": "#/components/schemas/spf-transporter.AmountWithTimeEstimate"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.CheckSolanaAddressRequest": {
+    "properties": {
+     "amount": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "solana_address": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.CheckSolanaAddressResponse": {
+    "properties": {
+     "current_time": {
+      "format": "date-time",
+      "type": "string"
      }
     },
     "type": "object"
@@ -689,6 +721,31 @@
        "application/json": {
         "schema": {
          "$ref": "#/components/schemas/transporter.CheckAllowanceResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "spf-transporter"
+    ]
+   }
+  },
+  "/v1/transporter/checksolanaaddress": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/transporter.CheckSolanaAddressRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/transporter.CheckSolanaAddressResponse"
         }
        }
       },

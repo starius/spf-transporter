@@ -12,6 +12,7 @@ import (
 
 type Service interface {
 	PreminedList(ctx context.Context, req *PreminedListRequest) (*PreminedListResponse, error)
+	CheckSolanaAddress(ctx context.Context, req *CheckSolanaAddressRequest) (*CheckSolanaAddressResponse, error)
 	CheckAllowance(ctx context.Context, req *CheckAllowanceRequest) (*CheckAllowanceResponse, error)
 	SubmitScpTx(ctx context.Context, req *SubmitScpTxRequest) (*SubmitScpTxResponse, error)
 	TransportStatus(ctx context.Context, req *TransportStatusRequest) (*TransportStatusResponse, error)
@@ -23,6 +24,15 @@ type PreminedListRequest struct {
 
 type PreminedListResponse struct {
 	Premined map[string]common.PreminedRecord `json:"premined"`
+}
+
+type CheckSolanaAddressRequest struct {
+	SolanaAddress common.SolanaAddress `json:"solana_address"`
+	Amount        types.Currency       `json:"amount"`
+}
+
+type CheckSolanaAddressResponse struct {
+	CurrentTime time.Time `json:"current_time"`
 }
 
 type CheckAllowanceRequest struct {

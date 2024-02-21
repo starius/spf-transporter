@@ -24,6 +24,7 @@ func route(s Service, handler, httpMethod string) api2.Route {
 func GetRoutes(s Service) []api2.Route {
 	return []api2.Route{
 		route(s, "PreminedList", http.MethodGet),
+		route(s, "CheckSolanaAddress", http.MethodGet),
 		route(s, "CheckAllowance", http.MethodGet),
 		route(s, "SubmitScpTx", http.MethodPost),
 		route(s, "TransportStatus", http.MethodGet),
