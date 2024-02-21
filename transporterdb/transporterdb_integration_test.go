@@ -192,6 +192,12 @@ func TestIntegrationRegular(t *testing.T) {
 		}, allowance)
 	})
 
+	t.Run("QueueSize", func(t *testing.T) {
+		queueSize, err := tdb.QueueSize(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "0", queueSize.String())
+	})
+
 	info := &common.UnconfirmedTxInfo{}
 
 	t.Run("add unconfirmed tx sending 100 funds", func(t *testing.T) {
@@ -213,6 +219,26 @@ func TestIntegrationRegular(t *testing.T) {
 		require.Equal(t, &common.QueueAllowance{
 			FreeCapacity: defaultSettings.QueueSizeLimit,
 		}, queueAllowance)
+	})
+
+	t.Run("QueueSize", func(t *testing.T) {
+		queueSize, err := tdb.QueueSize(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "100", queueSize.String())
+	})
+
+	t.Run("NextInQueue", func(t *testing.T) {
+		reqs, err := tdb.NextInQueue(ctx, types.ZeroCurrency)
+		require.NoError(t, err)
+		require.Empty(t, reqs)
+
+		reqs, err = tdb.NextInQueue(ctx, info.Amount)
+		require.NoError(t, err)
+		require.Empty(t, reqs)
+
+		reqs, err = tdb.NextInQueue(ctx, info.Amount.Add64(1))
+		require.NoError(t, err)
+		require.Empty(t, reqs)
 	})
 
 	t.Run("CheckAllowance after AddUnconfirmedScpTx", func(t *testing.T) {
@@ -254,6 +280,12 @@ func TestIntegrationRegular(t *testing.T) {
 		info.Height = &confirmationHeight
 	})
 
+	t.Run("QueueSize", func(t *testing.T) {
+		queueSize, err := tdb.QueueSize(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "100", queueSize.String())
+	})
+
 	t.Run("UnconfirmedInfo after SetConfirmationHeight", func(t *testing.T) {
 		info2, err := tdb.UnconfirmedInfo(ctx, info.BurnID)
 		require.NoError(t, err)
@@ -264,6 +296,12 @@ func TestIntegrationRegular(t *testing.T) {
 		infos, err := tdb.UnconfirmedBefore(ctx, info.Time.Add(time.Second))
 		require.NoError(t, err)
 		require.Equal(t, []common.UnconfirmedTxInfo{*info}, infos)
+	})
+
+	t.Run("QueueSize", func(t *testing.T) {
+		queueSize, err := tdb.QueueSize(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "100", queueSize.String())
 	})
 
 	transportRequest := common.TransportRequest{
@@ -286,6 +324,20 @@ func TestIntegrationRegular(t *testing.T) {
 		require.Equal(t, []common.TransportRequest{transportRequest}, reqs)
 
 		transportRequest.QueueUpTime = &now
+	})
+
+	t.Run("NextInQueue", func(t *testing.T) {
+		reqs, err := tdb.NextInQueue(ctx, types.ZeroCurrency)
+		require.NoError(t, err)
+		require.Empty(t, reqs)
+
+		reqs, err = tdb.NextInQueue(ctx, info.Amount)
+		require.NoError(t, err)
+		require.Empty(t, reqs)
+
+		reqs, err = tdb.NextInQueue(ctx, info.Amount.Add64(1))
+		require.NoError(t, err)
+		require.Equal(t, []common.TransportRequest{transportRequest}, reqs)
 	})
 
 	t.Run("UnconfirmedBefore after ConfirmUnconfirmed", func(t *testing.T) {
@@ -352,6 +404,12 @@ func TestIntegrationRegular(t *testing.T) {
 		}}, records)
 	})
 
+	t.Run("QueueSize", func(t *testing.T) {
+		queueSize, err := tdb.QueueSize(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "100", queueSize.String())
+	})
+
 	solanaConfirm := solanaTxInfo.BroadcastTime.Add(time.Minute)
 
 	t.Run("ConfirmSolana", func(t *testing.T) {
@@ -381,6 +439,12 @@ func TestIntegrationRegular(t *testing.T) {
 		require.Equal(t, common.SupplyInfo{
 			Regular: info.Amount,
 		}, supplyInfo)
+	})
+
+	t.Run("QueueSize", func(t *testing.T) {
+		queueSize, err := tdb.QueueSize(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "0", queueSize.String())
 	})
 }
 
