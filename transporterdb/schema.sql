@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS premined_transports (
     constraint     supply_grows check (supply_before < supply_after),
     burn_time      timestamp,
     solana_address text NOT NULL,
-    constraint     solana_address_len check (char_length(solana_address) between 32 and 44),
+    constraint     solana_address_not_empty check (solana_address <> ''),
     solana_id      text REFERENCES solana_transactions(id)
 );
 
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS airdrop_transports (
     burn_id        text PRIMARY KEY,
     constraint     burn_id_len check (char_length(burn_id) = 64),
     solana_address text NOT NULL,
-    constraint     solana_address_len check (char_length(solana_address) between 32 and 44),
+    constraint     solana_address_not_empty check (solana_address <> ''),
     supply_after   bigint UNIQUE NOT NULL,
     supply_before  bigint UNIQUE REFERENCES airdrop_transports(supply_after),
     constraint     supply_grows check (supply_before < supply_after),
@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS queue_transports (
     burn_id        text PRIMARY KEY,
     constraint     burn_id_len check (char_length(burn_id) = 64),
     solana_address text NOT NULL,
-    constraint     solana_address_len check (char_length(solana_address) between 32 and 44),
+    constraint     solana_address_not_empty check (solana_address <> ''),
     supply_after   bigint UNIQUE NOT NULL,
     supply_before  bigint UNIQUE REFERENCES queue_transports(supply_after),
     constraint     supply_grows check (supply_before < supply_after),
