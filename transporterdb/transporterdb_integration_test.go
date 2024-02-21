@@ -112,7 +112,9 @@ func TestIntegrationRunRetryableTransaction(t *testing.T) {
 	var infos []*common.UnconfirmedTxInfo
 	for i := 0; i < 10; i++ {
 		info := &common.UnconfirmedTxInfo{}
-		f.Fuzz(info)
+		for info.Amount.IsZero() {
+			f.Fuzz(info)
+		}
 		info.PreminedAddr = nil
 		info.Type = common.Regular
 		_, err := tdb.AddUnconfirmedScpTx(ctx, info)
