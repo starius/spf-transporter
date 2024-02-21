@@ -164,6 +164,64 @@ func TestIntegrationQueueNotEmpty(t *testing.T) {
 	require.Equal(t, sum.String(), queueSize.String())
 }
 
+func TestIntegrationRegular(t *testing.T) {
+	f := defaultFuzzer()
+	tdb := NewTestTransporterDB(t, defaultSettings)
+	ctx := context.Background()
+
+	t.Run("empty queue size", func(t *testing.T) {
+		queueSize, err := tdb.QueueSize(ctx)
+		require.NoError(t, err)
+		require.Equal(t, "0", queueSize.String())
+	})
+
+	t.Run("CheckAllowance in the beginning", func(t *testing.T) {
+		allowance, err := tdb.CheckAllowance(ctx, []types.UnlockHash{})
+		require.NoError(t, err)
+		require.Equal(t, &common.Allowance{
+			AirdropFreeCapacity: airdropFreeCapacity,
+			Queue: common.QueueAllowance{
+				FreeCapacity: defaultSettings.PreliminaryQueueSizeLimit,
+			},
+		}, allowance)
+	})
+
+	info := &common.UnconfirmedTxInfo{}
+
+	t.Run("add unconfirmed tx sending 100 funds", func(t *testing.T) {
+		f.Fuzz(info)
+		info.Type = common.Regular
+		info.PreminedAddr = nil
+		info.Height = nil
+
+		t.Run("zero amount does not work", func(t *testing.T) {
+			info.Amount = types.ZeroCurrency
+			_, err := tdb.AddUnconfirmedScpTx(ctx, info)
+			require.Error(t, err)
+		})
+
+		info.Amount = types.NewCurrency64(100)
+
+		queueAllowance, err := tdb.AddUnconfirmedScpTx(ctx, info)
+		require.NoError(t, err)
+		require.Equal(t, &common.QueueAllowance{
+			FreeCapacity: defaultSettings.QueueSizeLimit,
+		}, queueAllowance)
+	})
+
+	t.Run("CheckAllowance after AddUnconfirmedScpTx", func(t *testing.T) {
+		allowance, err := tdb.CheckAllowance(ctx, []types.UnlockHash{})
+		require.NoError(t, err)
+		require.Equal(t, &common.Allowance{
+			AirdropFreeCapacity: airdropFreeCapacity,
+			Queue: common.QueueAllowance{
+				FreeCapacity: defaultSettings.PreliminaryQueueSizeLimit.Sub64(100),
+				QueueSize:    types.NewCurrency64(100),
+			},
+		}, allowance)
+	})
+}
+
 func TestIntegrationPremined(t *testing.T) {
 	f := defaultFuzzer()
 	tdb := NewTestTransporterDB(t, defaultSettings)
@@ -191,7 +249,16 @@ func TestIntegrationPremined(t *testing.T) {
 	premined[1].Value = premined[1].Value.Add64(3)
 
 	t.Run("CheckAllowance before adding limits", func(t *testing.T) {
-		_, err := tdb.CheckAllowance(ctx, []types.UnlockHash{
+		allowance, err := tdb.CheckAllowance(ctx, []types.UnlockHash{})
+		require.NoError(t, err)
+		require.Equal(t, &common.Allowance{
+			AirdropFreeCapacity: airdropFreeCapacity,
+			Queue: common.QueueAllowance{
+				FreeCapacity: defaultSettings.PreliminaryQueueSizeLimit,
+			},
+		}, allowance)
+
+		_, err = tdb.CheckAllowance(ctx, []types.UnlockHash{
 			premined[0].UnlockHash,
 			premined[1].UnlockHash,
 		})
