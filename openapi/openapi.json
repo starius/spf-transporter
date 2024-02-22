@@ -1,0 +1,864 @@
+{
+ "components": {
+  "requestBodies": {
+   "transporter.CheckAllowanceRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/transporter.CheckAllowanceRequest"
+      }
+     }
+    }
+   },
+   "transporter.CheckSolanaAddressRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/transporter.CheckSolanaAddressRequest"
+      }
+     }
+    }
+   },
+   "transporter.HistoryRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/transporter.HistoryRequest"
+      }
+     }
+    }
+   },
+   "transporter.PreminedListRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/transporter.PreminedListRequest"
+      }
+     }
+    }
+   },
+   "transporter.SubmitScpTxRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/transporter.SubmitScpTxRequest"
+      }
+     }
+    }
+   },
+   "transporter.TransportStatusRequest": {
+    "content": {
+     "application/json": {
+      "schema": {
+       "$ref": "#/components/schemas/transporter.TransportStatusRequest"
+      }
+     }
+    }
+   }
+  },
+  "schemas": {
+   "common.PreminedRecord": {
+    "properties": {
+     "limit": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "transported": {
+      "$ref": "#/components/schemas/types.Currency"
+     }
+    },
+    "type": "object"
+   },
+   "common.SolanaAddress": {},
+   "common.SolanaTxID": {
+    "type": "string"
+   },
+   "common.SolanaTxInfo": {
+    "properties": {
+     "broadcast_time": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "solana_tx_id": {
+      "$ref": "#/components/schemas/common.SolanaTxID"
+     }
+    },
+    "type": "object"
+   },
+   "common.SpfxInvoice": {
+    "properties": {
+     "address": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "amount": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "total_supply": {
+      "$ref": "#/components/schemas/types.Currency"
+     }
+    },
+    "type": "object"
+   },
+   "common.TransportRecord": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/common.TransportRequest"
+     },
+     {
+      "$ref": "#/components/schemas/common.SolanaTxInfo"
+     }
+    ],
+    "properties": {
+     "completed": {
+      "type": "boolean"
+     },
+     "confirmation_time": {
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "common.TransportRequest": {
+    "allOf": [
+     {
+      "$ref": "#/components/schemas/common.SpfxInvoice"
+     }
+    ],
+    "properties": {
+     "burn_id": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "burn_time": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "queue_up_time": {
+      "format": "date-time",
+      "type": "string"
+     },
+     "type": {
+      "$ref": "#/components/schemas/common.TransportType"
+     }
+    },
+    "type": "object"
+   },
+   "common.TransportStatus": {
+    "enum": [
+     4,
+     2,
+     0,
+     3,
+     1
+    ],
+    "type": "number"
+   },
+   "common.TransportType": {
+    "enum": [
+     0,
+     1,
+     2
+    ],
+    "type": "number"
+   },
+   "crypto.Hash": {},
+   "spf-transporter.AmountWithTimeEstimate": {
+    "properties": {
+     "amount": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "wait_estimate": {
+      "type": "number"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.CheckAllowanceRequest": {
+    "properties": {
+     "premined_unlock_hashes": {
+      "items": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.CheckAllowanceResponse": {
+    "properties": {
+     "airdrop": {
+      "$ref": "#/components/schemas/spf-transporter.AmountWithTimeEstimate"
+     },
+     "premined": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/spf-transporter.AmountWithTimeEstimate"
+      },
+      "type": "object"
+     },
+     "regular": {
+      "$ref": "#/components/schemas/spf-transporter.AmountWithTimeEstimate"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.CheckSolanaAddressRequest": {
+    "properties": {
+     "amount": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "solana_address": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.CheckSolanaAddressResponse": {
+    "properties": {
+     "current_time": {
+      "format": "date-time",
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.HistoryRequest": {
+    "properties": {
+     "page_id": {
+      "type": "string"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.HistoryResponse": {
+    "properties": {
+     "more": {
+      "type": "boolean"
+     },
+     "next_page_id": {
+      "type": "string"
+     },
+     "records": {
+      "items": {
+       "$ref": "#/components/schemas/common.TransportRecord"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.PreminedListRequest": {
+    "type": "object"
+   },
+   "spf-transporter.PreminedListResponse": {
+    "properties": {
+     "premined": {
+      "additionalProperties": {
+       "$ref": "#/components/schemas/common.PreminedRecord"
+      },
+      "type": "object"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.SubmitScpTxRequest": {
+    "properties": {
+     "transaction": {
+      "$ref": "#/components/schemas/types.Transaction"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.SubmitScpTxResponse": {
+    "properties": {
+     "spf_amount_ahead": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "wait_time_estimate": {
+      "type": "number"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.TransportStatusRequest": {
+    "properties": {
+     "burn_id": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "spf-transporter.TransportStatusResponse": {
+    "properties": {
+     "status": {
+      "$ref": "#/components/schemas/common.TransportStatus"
+     }
+    },
+    "type": "object"
+   },
+   "types.BlockHeight": {
+    "type": "number"
+   },
+   "types.CoveredFields": {
+    "properties": {
+     "arbitrarydata": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "filecontractrevisions": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "filecontracts": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "minerfees": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "siacoininputs": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "siacoinoutputs": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "siafundinputs": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "siafundoutputs": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "storageproofs": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "transactionsignatures": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "wholetransaction": {
+      "type": "boolean"
+     }
+    },
+    "type": "object"
+   },
+   "types.Currency": {
+    "type": "object"
+   },
+   "types.FileContract": {
+    "properties": {
+     "filemerkleroot": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "filesize": {
+      "type": "number"
+     },
+     "missedproofoutputs": {
+      "items": {
+       "$ref": "#/components/schemas/types.SiacoinOutput"
+      },
+      "type": "array"
+     },
+     "payout": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "revisionnumber": {
+      "type": "number"
+     },
+     "unlockhash": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "validproofoutputs": {
+      "items": {
+       "$ref": "#/components/schemas/types.SiacoinOutput"
+      },
+      "type": "array"
+     },
+     "windowend": {
+      "$ref": "#/components/schemas/types.BlockHeight"
+     },
+     "windowstart": {
+      "$ref": "#/components/schemas/types.BlockHeight"
+     }
+    },
+    "type": "object"
+   },
+   "types.FileContractID": {},
+   "types.FileContractRevision": {
+    "properties": {
+     "newfilemerkleroot": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "newfilesize": {
+      "type": "number"
+     },
+     "newmissedproofoutputs": {
+      "items": {
+       "$ref": "#/components/schemas/types.SiacoinOutput"
+      },
+      "type": "array"
+     },
+     "newrevisionnumber": {
+      "type": "number"
+     },
+     "newunlockhash": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "newvalidproofoutputs": {
+      "items": {
+       "$ref": "#/components/schemas/types.SiacoinOutput"
+      },
+      "type": "array"
+     },
+     "newwindowend": {
+      "$ref": "#/components/schemas/types.BlockHeight"
+     },
+     "newwindowstart": {
+      "$ref": "#/components/schemas/types.BlockHeight"
+     },
+     "parentid": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "unlockconditions": {
+      "$ref": "#/components/schemas/types.UnlockConditions"
+     }
+    },
+    "type": "object"
+   },
+   "types.SiaPublicKey": {
+    "properties": {
+     "algorithm": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "key": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "types.SiacoinInput": {
+    "properties": {
+     "parentid": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "unlockconditions": {
+      "$ref": "#/components/schemas/types.UnlockConditions"
+     }
+    },
+    "type": "object"
+   },
+   "types.SiacoinOutput": {
+    "properties": {
+     "unlockhash": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "value": {
+      "$ref": "#/components/schemas/types.Currency"
+     }
+    },
+    "type": "object"
+   },
+   "types.SiacoinOutputID": {},
+   "types.SiafundInput": {
+    "properties": {
+     "claimunlockhash": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "parentid": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "unlockconditions": {
+      "$ref": "#/components/schemas/types.UnlockConditions"
+     }
+    },
+    "type": "object"
+   },
+   "types.SiafundOutput": {
+    "properties": {
+     "claimstart": {
+      "$ref": "#/components/schemas/types.Currency"
+     },
+     "unlockhash": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "value": {
+      "$ref": "#/components/schemas/types.Currency"
+     }
+    },
+    "type": "object"
+   },
+   "types.SiafundOutputID": {},
+   "types.Specifier": {},
+   "types.StorageProof": {
+    "properties": {
+     "hashset": {
+      "items": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      },
+      "type": "array"
+     },
+     "parentid": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "segment": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "types.Transaction": {
+    "properties": {
+     "arbitrarydata": {
+      "items": {
+       "items": {
+        "type": "number"
+       },
+       "type": "array"
+      },
+      "type": "array"
+     },
+     "filecontractrevisions": {
+      "items": {
+       "$ref": "#/components/schemas/types.FileContractRevision"
+      },
+      "type": "array"
+     },
+     "filecontracts": {
+      "items": {
+       "$ref": "#/components/schemas/types.FileContract"
+      },
+      "type": "array"
+     },
+     "minerfees": {
+      "items": {
+       "$ref": "#/components/schemas/types.Currency"
+      },
+      "type": "array"
+     },
+     "siacoininputs": {
+      "items": {
+       "$ref": "#/components/schemas/types.SiacoinInput"
+      },
+      "type": "array"
+     },
+     "siacoinoutputs": {
+      "items": {
+       "$ref": "#/components/schemas/types.SiacoinOutput"
+      },
+      "type": "array"
+     },
+     "siafundinputs": {
+      "items": {
+       "$ref": "#/components/schemas/types.SiafundInput"
+      },
+      "type": "array"
+     },
+     "siafundoutputs": {
+      "items": {
+       "$ref": "#/components/schemas/types.SiafundOutput"
+      },
+      "type": "array"
+     },
+     "storageproofs": {
+      "items": {
+       "$ref": "#/components/schemas/types.StorageProof"
+      },
+      "type": "array"
+     },
+     "transactionsignatures": {
+      "items": {
+       "$ref": "#/components/schemas/types.TransactionSignature"
+      },
+      "type": "array"
+     }
+    },
+    "type": "object"
+   },
+   "types.TransactionID": {},
+   "types.TransactionSignature": {
+    "properties": {
+     "coveredfields": {
+      "$ref": "#/components/schemas/types.CoveredFields"
+     },
+     "parentid": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "publickeyindex": {
+      "type": "number"
+     },
+     "signature": {
+      "items": {
+       "type": "number"
+      },
+      "type": "array"
+     },
+     "timelock": {
+      "$ref": "#/components/schemas/types.BlockHeight"
+     }
+    },
+    "type": "object"
+   },
+   "types.UnlockConditions": {
+    "properties": {
+     "publickeys": {
+      "items": {
+       "$ref": "#/components/schemas/types.SiaPublicKey"
+      },
+      "type": "array"
+     },
+     "signaturesrequired": {
+      "type": "number"
+     },
+     "timelock": {
+      "$ref": "#/components/schemas/types.BlockHeight"
+     }
+    },
+    "type": "object"
+   },
+   "types.UnlockHash": {}
+  }
+ },
+ "info": {
+  "title": "",
+  "version": "3.0.0"
+ },
+ "openapi": "3.0.0",
+ "paths": {
+  "/v1/transporter/checkallowance": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/transporter.CheckAllowanceRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/transporter.CheckAllowanceResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "spf-transporter"
+    ]
+   }
+  },
+  "/v1/transporter/checksolanaaddress": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/transporter.CheckSolanaAddressRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/transporter.CheckSolanaAddressResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "spf-transporter"
+    ]
+   }
+  },
+  "/v1/transporter/history": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/transporter.HistoryRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/transporter.HistoryResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "spf-transporter"
+    ]
+   }
+  },
+  "/v1/transporter/preminedlist": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/transporter.PreminedListRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/transporter.PreminedListResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "spf-transporter"
+    ]
+   }
+  },
+  "/v1/transporter/submitscptx": {
+   "post": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/transporter.SubmitScpTxRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/transporter.SubmitScpTxResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "spf-transporter"
+    ]
+   }
+  },
+  "/v1/transporter/transportstatus": {
+   "get": {
+    "requestBody": {
+     "$ref": "#/components/requestBodies/transporter.TransportStatusRequest"
+    },
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "$ref": "#/components/schemas/transporter.TransportStatusResponse"
+        }
+       }
+      },
+      "description": "info"
+     },
+     "default": {
+      "description": ""
+     }
+    },
+    "tags": [
+     "spf-transporter"
+    ]
+   }
+  }
+ }
+}

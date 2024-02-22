@@ -1,0 +1,26 @@
+image: golang:1.20
+
+stages:
+  - lint
+  - test
+
+lint:
+  stage: lint
+  script:
+    - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
+    - make lint
+
+tests:
+  stage: test
+  variables:
+      POSTGRES_DB: "transporterdb"
+      POSTGRES_USER: "user"
+      POSTGRES_PASSWORD: "dk358ncfDir8"
+  services:
+    - name:  postgres:12.2-alpine
+      alias: database
+  script:
+    # Unit tests.
+    - make unit_tests
+    # Integration tests.
+    - make integration_tests

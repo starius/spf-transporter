@@ -1,0 +1,7 @@
+image: golang:1.13
+
+test:
+  script:
+   - go get github.com/golangci/golangci-lint/cmd/golangci-lint
+   - golangci-lint run --disable-all --enable=vet --enable=gofmt ./...
+   - go test
